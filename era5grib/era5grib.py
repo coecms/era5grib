@@ -289,7 +289,7 @@ def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
                     nml["share"]["start_date"], format="%Y-%m-%d_%H:%M:%S"
                 ).min()
             if end is None:
-                start = pandas.to_datetime(
+                end = pandas.to_datetime(
                     nml["share"]["end_date"], format="%Y-%m-%d_%H:%M:%S"
                 ).max()
 
