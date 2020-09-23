@@ -28,4 +28,4 @@ requirements:
 
 test:
     imports:
-        - climtas
+        - era5grib
