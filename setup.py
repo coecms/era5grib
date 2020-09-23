@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import setuptools
+import versioneer
 
 setuptools.setup(
     name="era5grib",
@@ -25,4 +26,6 @@ setuptools.setup(
             "era5grib=era5grib:main",
         ]
     },
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
 )

@@ -26,7 +26,6 @@ import climtas
 import climtas.nci
 import iris
 from glob import glob
-import matplotlib.pyplot as plt
 import f90nml
 from pkg_resources import resource_stream, resource_filename
 import textwrap

@@ -1,0 +1,2 @@
+include versioneer.py
+include era5grib/_version.py
