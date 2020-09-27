@@ -37,7 +37,7 @@ fx.lsm.attrs["code"] = numpy.int32(172)
 fx.z.attrs["code"] = numpy.int32(129)
 
 chunks = {
-    "surface": {"time": 1, "latitude": 91 * 4, "longitude": 180 * 4},
+    "surface": {"time": 1, "latitude": 91 * 2, "longitude": 180 * 2},
     "land": {"time": 1, "latitude": 129 * 4, "longitude": 258 * 4},
     "pressure": {"time": 1, "latitude": 39 * 4, "longitude": 72 * 4, "level": 4},
 }
@@ -87,6 +87,7 @@ def read_era5_raw(entry, start, end):
 
     product = entry.name[0]
     var = entry.name[1]
+    print(product, var)
 
     for ms, me in zip(
         pandas.date_range(t0, t1, freq="MS"), pandas.date_range(t0, t1, freq="M")
@@ -104,7 +105,7 @@ def read_era5_raw(entry, start, end):
         da = xarray.open_mfdataset(paths, chunks=chunks[product])[var]
     except OSError:
         raise IndexError(
-            "ERROR: No ERA5 data found, check model dates are within the ERA5 period, you are a member of ub4 and that -lstorage includes gdata/ub4"
+            f"ERROR: No ERA5 data found, check model dates are within the ERA5 period, you are a member of ub4 and that -lstorage includes gdata/ub4 (requesting {product} {var} {t0} {t1})"
         )
 
     da = da.sel(time=slice(start, end))
@@ -208,6 +209,7 @@ def save_grib(ds, output):
     with tempfile.NamedTemporaryFile() as tmp:
         tmpnc = tmp.name
         climtas.io.to_netcdf_throttled(ds, tmpnc)
+        #ds.to_netcdf(tmpnc)
         subprocess.run(
             ["cdo", "-f", "grb1", "-t", "ecmwf", "copy", tmpnc, output], check=True
         )
@@ -235,6 +237,10 @@ def read_um(time):
         start,
         start,
     )
+
+    for k,v in ds.items():
+        print(k)
+        ds[k] = v.fillna(v.mean())
 
     return ds
 
@@ -313,7 +319,7 @@ def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
             or geo.XLONG_C.min() < ds.longitude[0]
             or geo.XLONG_C.max() > ds.longitude[-1]
         ):
-            raise IndexError("Selected domain is outside the NCI ERA5 archive")
+            raise IndexError("Selected domain is outside the NCI ERA5 archive (latitude {ds.latitude[-1].item()}:{ds.latitude[0].item()}, longitude {ds.longitude[0].item()}:{ds.longitude[-1].item()})")
 
         ds = ds.sel(
             latitude=slice(geo.XLAT_C.max() + 1, geo.XLAT_C.min() - 1),
