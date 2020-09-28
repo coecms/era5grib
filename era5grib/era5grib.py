@@ -29,6 +29,7 @@ from glob import glob
 import f90nml
 from pkg_resources import resource_stream, resource_filename
 import textwrap
+from tqdm import tqdm
 
 
 fx = xarray.open_dataset("/g/data/ub4/era5/netcdf/static_era5.nc").isel(time=0)
@@ -87,7 +88,6 @@ def read_era5_raw(entry, start, end):
 
     product = entry.name[0]
     var = entry.name[1]
-    print(product, var)
 
     for ms, me in zip(
         pandas.date_range(t0, t1, freq="MS"), pandas.date_range(t0, t1, freq="M")
@@ -191,13 +191,18 @@ def read_era5(surface, vertical, start, end):
     ds["lsm"] = fx.lsm
     ds["z"] = fx.z
 
+    print("Selecing ERA5 archive files")
+    progress = tqdm(total=len(surface) + len(vertical))
+
     for var in surface:
         da = read_surface(var, start, end)
         ds[da.name] = da
+        progress.update()
 
     for var in vertical:
         da = read_vertical(var, start, end)
         ds[da.name] = da
+        progress.update()
 
     return ds
 
@@ -207,9 +212,10 @@ def save_grib(ds, output):
     Save a dataset to GRIB format
     """
     with tempfile.NamedTemporaryFile() as tmp:
+        print("Creating intermediate file")
         tmpnc = tmp.name
         climtas.io.to_netcdf_throttled(ds, tmpnc)
-        #ds.to_netcdf(tmpnc)
+        print("Converting to GRIB")
         subprocess.run(
             ["cdo", "-f", "grb1", "-t", "ecmwf", "copy", tmpnc, output], check=True
         )
@@ -222,7 +228,7 @@ def read_um(time):
         [
             "skt",
             "sp",
-            "siconc",
+            #"siconc",
             "sde",
             "stl1",
             "stl2",
@@ -255,7 +261,7 @@ def read_wrf(start, end):
             "sp",
             "msl",
             "skt",
-            "siconc",
+            #"siconc",
             "sst",
             "sde",
             "stl1",
