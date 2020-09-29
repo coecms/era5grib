@@ -25,6 +25,7 @@ requirements:
         - climtas
         - iris
         - f90nml
+        - cdo
 
 test:
     requires:

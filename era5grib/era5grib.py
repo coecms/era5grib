@@ -245,7 +245,6 @@ def read_um(time):
     )
 
     for k,v in ds.items():
-        print(k)
         ds[k] = v.fillna(v.mean())
 
     return ds
