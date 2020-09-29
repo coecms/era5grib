@@ -82,30 +82,30 @@ def gen_weights():
 
 
 def read_era5_raw(entry, start, end):
-    t0 = pandas.offsets.MonthBegin().rollback(start)
-    t1 = pandas.offsets.MonthEnd().rollforward(end)
+    t0 = pandas.offsets.MonthBegin().rollback(start.date())
+    t1 = pandas.offsets.MonthEnd().rollforward(end.date())
     paths = []
 
     product = entry.name[0]
     var = entry.name[1]
+    pattern = None
 
     for ms, me in zip(
         pandas.date_range(t0, t1, freq="MS"), pandas.date_range(t0, t1, freq="M")
     ):
-        path = glob(
-            os.path.join(
+        pattern = os.path.join(
                 entry["dirname"],
                 ms.strftime("%Y"),
                 f'*_{ms.strftime("%Y%m%d")}_{me.strftime("%Y%m%d")}.nc',
             )
-        )
+        path = glob(pattern)
         paths.extend(path)
 
     try:
         da = xarray.open_mfdataset(paths, chunks=chunks[product])[var]
     except OSError:
         raise IndexError(
-            f"ERROR: No ERA5 data found, check model dates are within the ERA5 period, you are a member of ub4 and that -lstorage includes gdata/ub4 (requesting {product} {var} {t0} {t1})"
+            f"ERROR: No ERA5 data found, check model dates are within the ERA5 period, you are a member of ub4 and that -lstorage includes gdata/ub4 if running in the queue (requesting {product} {var} {t0} {t1}, {pattern})"
         )
 
     da = da.sel(time=slice(start, end))
@@ -280,6 +280,25 @@ def read_wrf(start, end):
 
     return ds
 
+def select_domain(ds, lats, lons):
+    error = False
+    message = "ERROR: Target area is outside the ERA5 archive domain"
+
+    if lats.max() > ds.latitude[0] or lats.min() < ds.latitude[-1]:
+        error = True
+        message += f"\n    Latitudes: Target ({lats.min().values:.2f}:{lats.max().values:.2f}), ERA5 (-57:20)"
+    if lons.min() < ds.longitude[0] or lons.max() > ds.longitude[-1]:
+        error = True
+        message += f"\n    Longitudes: Target ({lons.min().values:.2f}:{lons.max().values:.2f}), ERA5 (78:220)"
+
+    if error:
+        raise IndexError(message)
+
+    return ds.sel(latitude=slice(lats.max()+1, lats.min()-1),
+            longitude=slice(lons.min()-1, lons.max()+1))
+
+
+
 
 def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
     """
@@ -299,11 +318,19 @@ def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
             if start is None:
                 start = pandas.to_datetime(
                     nml["share"]["start_date"], format="%Y-%m-%d_%H:%M:%S"
-                ).min()
+                )
+                try:
+                    start = start.min()
+                except:
+                    pass
             if end is None:
                 end = pandas.to_datetime(
                     nml["share"]["end_date"], format="%Y-%m-%d_%H:%M:%S"
-                ).max()
+                )
+                try:
+                    end = end.max()
+                except:
+                    pass
 
     if start is None:
         raise Exception("Please provide either 'start' or 'namelist'")
@@ -318,19 +345,8 @@ def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
 
     if geo is not None:
         geo = xarray.open_dataset(geo)
+        ds = select_domain(ds, lats=geo.XLAT_M, lons=geo.XLONG_M)
 
-        if (
-            geo.XLAT_C.max() > ds.latitude[0]
-            or geo.XLAT_C.min() < ds.latitude[-1]
-            or geo.XLONG_C.min() < ds.longitude[0]
-            or geo.XLONG_C.max() > ds.longitude[-1]
-        ):
-            raise IndexError("Selected domain is outside the NCI ERA5 archive (latitude {ds.latitude[-1].item()}:{ds.latitude[0].item()}, longitude {ds.longitude[0].item()}:{ds.longitude[-1].item()})")
-
-        ds = ds.sel(
-            latitude=slice(geo.XLAT_C.max() + 1, geo.XLAT_C.min() - 1),
-            longitude=slice(geo.XLONG_C.min() - 1, geo.XLONG_C.max() + 1),
-        )
     else:
         print("WARNING: Outputting the full domain, use --geo=geo_em.d01.nc to limit")
 
@@ -382,6 +398,17 @@ def era5grib_um(time, output=None, target=None):
     print(f"Wrote {output}")
 
 
+def init():
+    global catalogue
+    catalogue = pandas.read_csv(
+        resource_stream(__name__, "catalogue.csv"), index_col=["product", "varname"]
+    )
+    weights = xarray.open_dataset(resource_filename(__name__, "regrid_weights.nc"))
+
+    global regridder
+    regridder = Regridder(weights=weights)
+
+
 def main():
     """
     Convert the NCI ERA5 archive data to GRIB format for use in limited area modelling.
@@ -422,14 +449,7 @@ def main():
 
     args = parser.parse_args()
 
-    global catalogue
-    catalogue = pandas.read_csv(
-        resource_stream(__name__, "catalogue.csv"), index_col=["product", "varname"]
-    )
-    weights = xarray.open_dataset(resource_filename(__name__, "regrid_weights.nc"))
-
-    global regridder
-    regridder = Regridder(weights=weights)
+    init()
 
     dargs = vars(args)
     func = dargs.pop("func")

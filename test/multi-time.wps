@@ -1,0 +1,39 @@
+&share
+ wrf_core = 'ARW',
+ max_dom = 2,
+ start_date = '2019-03-01_00:00:00','2019-03-01_00:00:00',
+ end_date   = '2019-03-01_00:00:00','2019-03-01_00:00:00',
+ interval_seconds = 21600
+ io_form_geogrid = 2,
+/
+
+&geogrid
+ parent_id         =   1,   1,
+ parent_grid_ratio =   1,   3,
+ i_parent_start    =   1,  67,
+ j_parent_start    =   1,  15,
+ e_we              =  216, 229,
+ e_sn              =  145, 229,
+ geog_data_res     = 'default','default'
+ dx = 0.2,
+ dy = 0.2,
+ map_proj = 'lat-lon',
+ ref_lat   = -24.26,
+ ref_lon   = 147.63,
+ pole_lat  =  60.31,
+ pole_lon  =  321.38,
+ stand_lon = 32.37,
+ geog_data_path = '/g/data/sx70/data/WPS_GEOG_v4/'
+/
+
+&ungrib
+ out_format = 'WPS',
+ prefix = 'FILE',
+/
+
+&metgrid
+ constants_name = 'INV:1989-01-01_12',
+ fg_name = 'SFC','PL',
+ io_form_metgrid = 2, 
+/
+

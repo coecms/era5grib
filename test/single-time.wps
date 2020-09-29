@@ -1,0 +1,40 @@
+&share
+    wrf_core = 'ARW'
+    max_dom = 1
+    start_date = '2015-07-14_12:00:00'
+    end_date = '2015-07-14_14:00:00'
+    interval_seconds = 21600
+    io_form_geogrid = 2
+    debug_level = 0
+/
+
+&geogrid
+    parent_id = 0, 1, 2
+    parent_grid_ratio = 1, 4, 4
+    i_parent_start = 1, 39, 32
+    j_parent_start = 1, 42, 42
+    e_we = 100, 113, 113
+    e_sn = 90, 113, 113
+    geog_data_res = 'usgs_10m', 'usgs_2m', 'usgs_30s'
+    dx = 81000
+    dy = 81000
+    map_proj = 'lambert'
+    ref_lat = -34.36
+    ref_lon = 134.33
+    truelat1 = -10
+    truelat2 = -50
+    stand_lon = 134.33
+    geog_data_path = '/short/w22/jds563/data/WPS/GA-topography/geog'
+    ref_x = 44.5
+    ref_y = 35.0
+/
+
+&ungrib
+    out_format = 'WPS'
+    prefix = 'ERA'
+/
+
+&metgrid
+    fg_name = 'ERA'
+    io_form_metgrid = 2
+/

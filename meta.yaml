@@ -27,5 +27,11 @@ requirements:
         - f90nml
 
 test:
+    requires:
+        - pytest
     imports:
         - era5grib
+    files:
+        - test
+    commands:
+        - py.test
