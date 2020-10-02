@@ -90,19 +90,22 @@ def read_era5_raw(entry, start, end):
     var = entry.name[1]
     pattern = None
 
+    source = {'land': 'era5land', 'surface': 'era5', 'pressure': 'era5'}[product]
+    domain = {'land': 'global', 'surface': 'global', 'pressure': 'aus'}[product]
+
     for ms, me in zip(
         pandas.date_range(t0, t1, freq="MS"), pandas.date_range(t0, t1, freq="M")
     ):
         pattern = os.path.join(
                 entry["dirname"],
                 ms.strftime("%Y"),
-                f'*_{ms.strftime("%Y%m%d")}_{me.strftime("%Y%m%d")}.nc',
+                f'*_{source}_{domain}_{ms.strftime("%Y%m%d")}_{me.strftime("%Y%m%d")}.nc',
             )
         path = glob(pattern)
         paths.extend(path)
 
     try:
-        da = xarray.open_mfdataset(paths, chunks=chunks[product])[var]
+        da = xarray.open_mfdataset(paths, chunks=chunks[product], concat_dim='time')[var]
     except OSError:
         raise IndexError(
             f"ERROR: No ERA5 data found, check model dates are within the ERA5 period, you are a member of ub4 and that -lstorage includes gdata/ub4 if running in the queue (requesting {product} {var} {t0} {t1}, {pattern})"
@@ -428,8 +431,8 @@ def main():
     )
     wrf.set_defaults(func=era5grib_wrf)
     wrf.add_argument("--namelist", help="Read start and end dates from WPS namelist")
-    wrf.add_argument("--start", help="Output start time")
-    wrf.add_argument("--end", help="Output end time")
+    wrf.add_argument("--start", help="Output start time", type=pandas.to_datetime)
+    wrf.add_argument("--end", help="Output end time", type=pandas.to_datetime)
     wrf.add_argument("--output", help="Output file")
     wrf.add_argument("--geo", help="Geogrid file for trimming (e.g. geo_em.d01.nc)")
 
