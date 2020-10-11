@@ -32,18 +32,13 @@ import textwrap
 from tqdm import tqdm
 
 
-fx = xarray.open_dataset("/g/data/ub4/era5/netcdf/static_era5.nc").isel(time=0)
-fx = fx.sel(latitude=slice(20, -57), longitude=slice(78, 220))
-fx.lsm.attrs["code"] = numpy.int32(172)
-fx.z.attrs["code"] = numpy.int32(129)
-
 chunks = {
     "surface": {"time": 1, "latitude": 91 * 2, "longitude": 180 * 2},
     "land": {"time": 1, "latitude": 129 * 4, "longitude": 258 * 4},
     "pressure": {"time": 1, "latitude": 39 * 4, "longitude": 72 * 4, "level": 4},
 }
 
-
+fx = None
 catalogue = None
 regridder = None  # Regridder(weights=weights)
 
@@ -401,6 +396,13 @@ def era5grib_um(time, output=None, target=None):
 
 
 def init():
+    global fx
+
+    fx = xarray.open_dataset("/g/data/ub4/era5/netcdf/static_era5.nc").isel(time=0)
+    fx = fx.sel(latitude=slice(20, -57), longitude=slice(78, 220))
+    fx.lsm.attrs["code"] = numpy.int32(172)
+    fx.z.attrs["code"] = numpy.int32(129)
+
     global catalogue
     catalogue = pandas.read_csv(
         resource_stream(__name__, "catalogue.csv"), index_col=["product", "varname"]
