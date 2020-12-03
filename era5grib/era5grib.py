@@ -85,22 +85,24 @@ def read_era5_raw(entry, start, end):
     var = entry.name[1]
     pattern = None
 
-    source = {'land': 'era5land', 'surface': 'era5', 'pressure': 'era5'}[product]
-    domain = {'land': 'global', 'surface': 'global', 'pressure': 'aus'}[product]
+    source = {"land": "era5land", "surface": "era5", "pressure": "era5"}[product]
+    domain = {"land": "global", "surface": "global", "pressure": "aus"}[product]
 
     for ms, me in zip(
         pandas.date_range(t0, t1, freq="MS"), pandas.date_range(t0, t1, freq="M")
     ):
         pattern = os.path.join(
-                entry["dirname"],
-                ms.strftime("%Y"),
-                f'*_{source}_{domain}_{ms.strftime("%Y%m%d")}_{me.strftime("%Y%m%d")}.nc',
-            )
+            entry["dirname"],
+            ms.strftime("%Y"),
+            f'*_{source}_{domain}_{ms.strftime("%Y%m%d")}_{me.strftime("%Y%m%d")}.nc',
+        )
         path = glob(pattern)
         paths.extend(path)
 
     try:
-        da = xarray.open_mfdataset(paths, chunks=chunks[product], concat_dim='time')[var]
+        da = xarray.open_mfdataset(paths, chunks=chunks[product], concat_dim="time")[
+            var
+        ]
     except OSError:
         raise IndexError(
             f"ERROR: No ERA5 data found, check model dates are within the ERA5 period, you are a member of ub4 and that -lstorage includes gdata/ub4 if running in the queue (requesting {product} {var} {t0} {t1}, {pattern})"
@@ -226,7 +228,7 @@ def read_um(time):
         [
             "skt",
             "sp",
-            #"siconc",
+            # "siconc",
             "sde",
             "stl1",
             "stl2",
@@ -242,7 +244,7 @@ def read_um(time):
         start,
     )
 
-    for k,v in ds.items():
+    for k, v in ds.items():
         ds[k] = v.fillna(v.mean())
 
     return ds
@@ -258,7 +260,7 @@ def read_wrf(start, end):
             "sp",
             "msl",
             "skt",
-            #"siconc",
+            # "siconc",
             "sst",
             "sde",
             "stl1",
@@ -277,6 +279,7 @@ def read_wrf(start, end):
 
     return ds
 
+
 def select_domain(ds, lats, lons):
     error = False
     message = "ERROR: Target area is outside the ERA5 archive domain"
@@ -291,10 +294,10 @@ def select_domain(ds, lats, lons):
     if error:
         raise IndexError(message)
 
-    return ds.sel(latitude=slice(lats.max()+1, lats.min()-1),
-            longitude=slice(lons.min()-1, lons.max()+1))
-
-
+    return ds.sel(
+        latitude=slice(lats.max() + 1, lats.min() - 1),
+        longitude=slice(lons.min() - 1, lons.max() + 1),
+    )
 
 
 def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
@@ -342,7 +345,10 @@ def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
 
     if geo is not None:
         geo = xarray.open_dataset(geo)
-        ds = select_domain(ds, lats=geo.XLAT_M, lons=geo.XLONG_M)
+
+        lons = geo.XLONG_M.where(geo.XLONG_M > 0, geo.XLONG_M + 360)
+
+        ds = select_domain(ds, lats=geo.XLAT_M, lons=lons)
 
     else:
         print("WARNING: Outputting the full domain, use --geo=geo_em.d01.nc to limit")
