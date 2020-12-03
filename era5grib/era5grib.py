@@ -33,9 +33,9 @@ from tqdm import tqdm
 
 
 chunks = {
-    "surface": {"time": 1, "latitude": 91 * 2, "longitude": 180 * 2},
-    "land": {"time": 1, "latitude": 129 * 4, "longitude": 258 * 4},
-    "pressure": {"time": 1, "latitude": 39 * 4, "longitude": 72 * 4, "level": 4},
+    "surface": {"time": 93, "latitude": 91, "longitude": 180},
+    "land": {"time": 54, "latitude": 129, "longitude": 258},
+    "pressure": {"time": 93, "latitude": 39, "longitude": 72, "level": -1},
 }
 
 fx = None
@@ -211,13 +211,27 @@ def save_grib(ds, output):
     """
     Save a dataset to GRIB format
     """
-    with tempfile.NamedTemporaryFile() as tmp:
+    with tempfile.NamedTemporaryFile() as tmp1, tempfile.NamedTemporaryFile() as tmp2:
         print("Creating intermediate file")
-        tmpnc = tmp.name
-        climtas.io.to_netcdf_throttled(ds, tmpnc)
+        # Saving with compression is fast here
+        tmp_compressed = tmp1.name
+        climtas.io.to_netcdf_throttled(ds, tmp_compressed)
+
+        print("Decompressing intermediate file")
+        # Decompress the data for CDO's benefit
+        ds = xarray.open_dataset(tmp_compressed, chunks={"time": 1})
+        encoding = {
+            k: {"complevel": 0, "chunksizes": None, "_FillValue": -1e99}
+            for k in ds.keys()
+        }
+        tmp_uncompressed = tmp2.name
+        ds.to_netcdf(tmp_uncompressed, encoding=encoding)
+
         print("Converting to GRIB")
+        # CDO is faster with uncompressed data
         subprocess.run(
-            ["cdo", "-f", "grb1", "-t", "ecmwf", "copy", tmpnc, output], check=True
+            ["cdo", "-f", "grb1", "-t", "ecmwf", "copy", tmp_uncompressed, output],
+            check=True,
         )
 
 
