@@ -30,6 +30,8 @@ import f90nml
 from pkg_resources import resource_stream, resource_filename
 import textwrap
 from tqdm import tqdm
+import time
+import dask.diagnostics
 
 
 chunks = {
@@ -218,14 +220,16 @@ def save_grib(ds, output):
         climtas.io.to_netcdf_throttled(ds, tmp_compressed)
 
         print("Decompressing intermediate file")
+        mark = time.perf_counter()
         # Decompress the data for CDO's benefit
         ds = xarray.open_dataset(tmp_compressed, chunks={"time": 1})
         encoding = {
-            k: {"complevel": 0, "chunksizes": None, "_FillValue": -1e99}
+            k: {"complevel": 0, "chunksizes": None, "_FillValue": -1e10}
             for k in ds.keys()
         }
         tmp_uncompressed = tmp2.name
         ds.to_netcdf(tmp_uncompressed, encoding=encoding)
+        print("Decompress time", time.perf_counter() - mark)
 
         print("Converting to GRIB")
         # CDO is faster with uncompressed data
@@ -473,12 +477,25 @@ def main():
 
     args = parser.parse_args()
 
+    if os.environ["HOSTNAME"].startswith("gadi-login"):
+        tmpdir = tempfile.TemporaryDirectory()
+        client = dask.distributed.Client(
+            n_workers=2,
+            threads_per_worker=1,
+            memory_limit="1gb",
+            local_directory=tmpdir.name,
+        )
+    else:
+        client = climtas.nci.GadiClient()
+
     init()
 
     dargs = vars(args)
     func = dargs.pop("func")
 
     func(**dargs)
+
+    client.close(timeout=3)
 
 
 if __name__ == "__main__":
