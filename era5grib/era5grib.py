@@ -227,7 +227,7 @@ def save_grib(ds, output):
             k: {"complevel": 0, "chunksizes": None, "_FillValue": -1e10}
             for k in ds.keys()
         }
-        tmp_uncompressed = tmp2.name
+        tmp_uncompressed = "intermediate.nc"  # tmp2.name
         ds.to_netcdf(tmp_uncompressed, encoding=encoding)
         print("Decompress time", time.perf_counter() - mark)
 
@@ -265,6 +265,8 @@ def read_um(time):
     for k, v in ds.items():
         ds[k] = v.fillna(v.mean())
 
+    ds = soil_level_metadata(ds)
+
     return ds
 
 
@@ -294,6 +296,33 @@ def read_wrf(start, end):
         start,
         end,
     )
+
+    ds = soil_level_metadata(ds)
+
+    return ds
+
+
+def soil_level_metadata(ds):
+    depth = [None, 3.5, 17.5, 64, 177.5]
+    depth_bnds = [None, 0, 7, 28, 100, 255]
+
+    depth_attrs = {
+        "long_name": "depth_below_land",
+        "units": "cm",
+        "positive": "down",
+        "axis": "Z",
+    }
+
+    for l in range(1, 5):
+        ds[f"stl{l}_surf"] = ds[f"stl{l}_surf"].expand_dims(f"depth{l}", axis=1)
+        ds[f"swvl{l}_surf"] = ds[f"swvl{l}_surf"].expand_dims(f"depth{l}", axis=1)
+        ds.coords[f"depth{l}"] = xarray.DataArray(
+            depth[l : (l + 1)], dims=[f"depth{l}"], attrs=depth_attrs
+        )
+        ds.coords[f"depth{l}_bnds"] = xarray.DataArray(
+            [depth_bnds[l : (l + 2)]], dims=[f"depth{l}", "bnds"], attrs=depth_attrs
+        )
+        ds.coords[f"depth{l}"].attrs["bounds"] = f"depth{l}_bnds"
 
     return ds
 
