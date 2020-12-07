@@ -227,7 +227,7 @@ def save_grib(ds, output):
             k: {"complevel": 0, "chunksizes": None, "_FillValue": -1e10}
             for k in ds.keys()
         }
-        tmp_uncompressed = "intermediate.nc"  # tmp2.name
+        tmp_uncompressed = tmp2.name
         ds.to_netcdf(tmp_uncompressed, encoding=encoding)
         print("Decompress time", time.perf_counter() - mark)
 
