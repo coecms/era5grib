@@ -8,7 +8,7 @@ To use era5grib you will need to be a member of the [hh5](https://my.nci.org.au/
 Load the conda environment with
 ```bash
 module use /g/data3/hh5/public/modules
-module load conda/analysis3-20.07
+module load conda/analysis3-20.10
 ```
 
 ### WRF output
