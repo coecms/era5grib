@@ -18,7 +18,7 @@ land,/g/data/ub4/era5/netcdf/land/stl4,stl4,Soil temperature level 4,236,128
 land,/g/data/ub4/era5/netcdf/land/pev,pev,Potential evaporation,251,228
 land,/g/data/ub4/era5/netcdf/land/tp,tp,Total precipitation,228,128
 land,/g/data/ub4/era5/netcdf/land/swvl1,swvl1,Volumetric soil water layer 1,39,128
-land,/g/data/ub4/era5/netcdf/land/sde,sd,Snow depth,141,128
+land,/g/data/ub4/era5/netcdf/land/sde,sde,Snow depth,141,128
 land,/g/data/ub4/era5/netcdf/land/evabs,evabs,Evaporation from bare soil,101,228
 land,/g/data/ub4/era5/netcdf/land/swvl2,swvl2,Volumetric soil water layer 2,40,128
 land,/g/data/ub4/era5/netcdf/land/swvl4,swvl4,Volumetric soil water layer 4,42,128
