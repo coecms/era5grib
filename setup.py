@@ -20,7 +20,7 @@ import versioneer
 setuptools.setup(
     name="era5grib",
     packages=["era5grib"],
-    package_data={"era5grib": ["catalogue.csv", "regrid_weights.nc"]},
+    package_data={"era5grib": ["catalogue.csv", "clex_regrid_weights.nc", "nci_regrid_weights.nc"]},
     entry_points={
         "console_scripts": [
             "era5grib=era5grib:main",

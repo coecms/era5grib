@@ -32,194 +32,26 @@ import textwrap
 from tqdm import tqdm
 import time
 import dask.diagnostics
+from . import nci as nci
+from . import clex as clex
+import logging
 
 
-chunks = {
-    "surface": {"time": 93, "latitude": 91, "longitude": 180},
-    "land": {"time": 54, "latitude": 129, "longitude": 258},
-    "pressure": {"time": 93, "latitude": 39, "longitude": 72, "level": -1},
-}
-
-fx = None
-catalogue = None
-regridder = None  # Regridder(weights=weights)
-
-
-def land_subset(da):
-
-    da = da.roll(longitude=3600 // 2, roll_coords=True)
-
-    attrs = da["longitude"].attrs
-    da["longitude"] = numpy.concatenate(
-        [da.longitude[: 3600 // 2], da.longitude[3600 // 2 :] + 360]
-    )
-    da["longitude"].attrs = attrs
-
-    da = da.sel(latitude=slice(19.5, -57.5), longitude=slice(77.5, 220.5))
-    return da
-
-
-def gen_weights():
-    source = xarray.open_dataset(
-        "/g/data/ub4/era5/netcdf/land/skt/2020/skt_era5land_global_20200101_20200131.nc",
-        chunks=chunks["land"],
-    )["skt"]
-    source = land_subset(source.isel(time=0))
-    target = fx.lsm.where(fx.lsm > 0)
-
-    weights = climtas.regrid.esmf_generate_weights(source, target, method="patch")
-
-    encoding = {}
-    for k, v in weights.items():
-        encoding[k] = {"zlib": True, "shuffle": True, "complevel": 8}
-        if v.dtype == "float64":
-            encoding[k]["dtype"] = "float32"
-
-    weights.to_netcdf("regrid_weights.nc", encoding=encoding)
-
-
-def read_era5_raw(entry, start, end):
-    t0 = pandas.offsets.MonthBegin().rollback(start.date())
-    t1 = pandas.offsets.MonthEnd().rollforward(end.date())
-    paths = []
-
-    product = entry.name[0]
-    var = entry.name[1]
-    pattern = None
-
-    source = {"land": "era5land", "surface": "era5", "pressure": "era5"}[product]
-    domain = {"land": "global", "surface": "global", "pressure": "aus"}[product]
-
-    for ms, me in zip(
-        pandas.date_range(t0, t1, freq="MS"), pandas.date_range(t0, t1, freq="M")
-    ):
-        pattern = os.path.join(
-            entry["dirname"],
-            ms.strftime("%Y"),
-            f'*_{source}_{domain}_{ms.strftime("%Y%m%d")}_{me.strftime("%Y%m%d")}.nc',
-        )
-        path = glob(pattern)
-        paths.extend(path)
-
-    try:
-        da = xarray.open_mfdataset(paths, chunks=chunks[product], concat_dim="time")[
-            var
-        ]
-    except OSError:
-        raise IndexError(
-            f"ERROR: No ERA5 data found, check model dates are within the ERA5 period, you are a member of ub4 and that -lstorage includes gdata/ub4 if running in the queue (requesting {product} {var} {t0} {t1}, {pattern})"
-        )
-
-    da = da.sel(time=slice(start, end))
-
-    if product == "land":
-        # Regrid
-        da = land_subset(da)
-        da = regridder.regrid(da)
-
-    if product == "surface":
-        # Select region
-        da = da.roll(longitude=1440 // 2, roll_coords=True)
-        da["longitude"] = numpy.concatenate(
-            [da.longitude[: 1440 // 2], da.longitude[1440 // 2 :] + 360]
-        )
-        da = da.sel(latitude=slice(20, -57), longitude=slice(78, 220))
-
-    da.attrs["code"] = numpy.int32(entry["code"])
-    da.attrs["table"] = numpy.int32(entry["table"])
-    da.attrs["era5_name"] = var
-    da.attrs["product"] = product
-
-    da.encoding.setdefault("_FillValue", -1e10)
-
-    return da
-
-
-def read_surface(var, start, end):
-    """
-    Read a surface level variable from era5
-
-    Checks both 'surface' and 'era5land'
-
-    If the variable is present in both, 'era5land' values are used over land
-    (regridded to the era5 grid), and 'surface' values over the ocean
-    """
-
-    # Variables to use from surface to fill in ocean points, if different from var
-    surf_vars = {"skt": "sst"}
-    surf_var = surf_vars.get(var, var)
-
-    # Grab the variable from surface if its available
-    try:
-        da_surf = read_era5_raw(catalogue.loc["surface", surf_var], start, end)
-
-    except KeyError:
-        da_surf = None
-
-    # Then grab the variable from era5land
-    try:
-        da = read_era5_raw(catalogue.loc["land", var], start, end)
-
-        # Fill in over oceans if we found the variable in surface
-        if da_surf is not None:
-            da = da.where(fx.lsm.data > 0, da_surf.data)
-            da.attrs["product"] = "mixed era5land / era5 surface"
-            da.encoding.setdefault("_FillValue", -1e10)
-
-    except KeyError:
-        da = da_surf
-
-    if da is None:
-        raise KeyError(var)
-
-    da.attrs["var"] = var
-    da.name = f"{var}_surf"
-
-    return da
-
-
-def read_vertical(var, start, end):
-    """
-    Read a vertical level variable from era5
-    """
-    entry = catalogue.loc["pressure", var]
-    da = read_era5_raw(entry, start, end)
-    da.name = f"{var}_pl"
-    return da
-
-
-def read_era5(surface, vertical, start, end):
-    ds = xarray.Dataset()
-    ds["lsm"] = fx.lsm
-    ds["z"] = fx.z
-
-    print("Selecing ERA5 archive files")
-    progress = tqdm(total=len(surface) + len(vertical))
-
-    for var in surface:
-        da = read_surface(var, start, end)
-        ds[da.name] = da
-        progress.update()
-
-    for var in vertical:
-        da = read_vertical(var, start, end)
-        ds[da.name] = da
-        progress.update()
-
-    return ds
-
-
-def save_grib(ds, output):
+def save_grib(ds, output, format="grib"):
     """
     Save a dataset to GRIB format
     """
+    if format == "netcdf":
+        climtas.io.to_netcdf_throttled(ds, output)
+        return
+
     with tempfile.NamedTemporaryFile() as tmp1, tempfile.NamedTemporaryFile() as tmp2:
-        print("Creating intermediate file")
+        logging.info("Creating intermediate file")
         # Saving with compression is fast here
         tmp_compressed = tmp1.name
         climtas.io.to_netcdf_throttled(ds, tmp_compressed)
 
-        print("Decompressing intermediate file")
+        logging.info("Decompressing intermediate file")
         mark = time.perf_counter()
         # Decompress the data for CDO's benefit
         ds = xarray.open_dataset(tmp_compressed, chunks={"time": 1})
@@ -229,9 +61,9 @@ def save_grib(ds, output):
         }
         tmp_uncompressed = tmp2.name
         ds.to_netcdf(tmp_uncompressed, encoding=encoding)
-        print("Decompress time", time.perf_counter() - mark)
+        logging.info(f"Decompress time {time.perf_counter() - mark}")
 
-        print("Converting to GRIB")
+        logging.info("Converting to GRIB")
         # CDO is faster with uncompressed data
         subprocess.run(
             ["cdo", "-f", "grb1", "-t", "ecmwf", "copy", tmp_uncompressed, output],
@@ -239,104 +71,24 @@ def save_grib(ds, output):
         )
 
 
-def read_um(time):
-    # Make sure the time includes an hour
-    start = pandas.offsets.Hour().rollback(time)
-    ds = read_era5(
-        [
-            "skt",
-            "sp",
-            # "siconc",
-            "sde",
-            "stl1",
-            "stl2",
-            "stl3",
-            "stl4",
-            "swvl1",
-            "swvl2",
-            "swvl3",
-            "swvl4",
-        ],
-        ["u", "v", "t", "q"],
-        start,
-        start,
-    )
-
-    for k, v in ds.items():
-        ds[k] = v.fillna(v.mean())
-
-    ds = soil_level_metadata(ds)
-
-    return ds
-
-
-def read_wrf(start, end):
-    ds = read_era5(
-        [
-            "u10",
-            "v10",
-            "t2m",
-            "d2m",
-            "sp",
-            "msl",
-            "skt",
-            # "siconc",
-            "sst",
-            "sde",
-            "stl1",
-            "stl2",
-            "stl3",
-            "stl4",
-            "swvl1",
-            "swvl2",
-            "swvl3",
-            "swvl4",
-        ],
-        ["z", "u", "v", "t", "r"],
-        start,
-        end,
-    )
-
-    ds = soil_level_metadata(ds)
-
-    return ds
-
-
-def soil_level_metadata(ds):
-    depth = [None, 3.5, 17.5, 64, 177.5]
-    depth_bnds = [None, 0, 7, 28, 100, 255]
-
-    depth_attrs = {
-        "long_name": "depth_below_land",
-        "units": "cm",
-        "positive": "down",
-        "axis": "Z",
-    }
-
-    for l in range(1, 5):
-        ds[f"stl{l}_surf"] = ds[f"stl{l}_surf"].expand_dims(f"depth{l}", axis=1)
-        ds[f"swvl{l}_surf"] = ds[f"swvl{l}_surf"].expand_dims(f"depth{l}", axis=1)
-        ds.coords[f"depth{l}"] = xarray.DataArray(
-            depth[l : (l + 1)], dims=[f"depth{l}"], attrs=depth_attrs
-        )
-        ds.coords[f"depth{l}_bnds"] = xarray.DataArray(
-            [depth_bnds[l : (l + 2)]], dims=[f"depth{l}", "bnds"], attrs=depth_attrs
-        )
-        ds.coords[f"depth{l}"].attrs["bounds"] = f"depth{l}_bnds"
-
-    return ds
-
-
 def select_domain(ds, lats, lons):
     error = False
     message = "ERROR: Target area is outside the ERA5 archive domain"
 
+    logging.info(f"Latitudes: Target ({lats.min():.2f}:{lats.max():.2f})")
+    logging.info(f"Longitudes: Target ({lons.min():.2f}:{lons.max():.2f})")
+
+    if ds.longitude[-1] < 180 and lons.max() > 180:
+        # Roll longitude
+        ds = ds.roll(longitude=ds.sizes['longitude']//2, roll_coords=True)
+        ds = ds.assign_coords(longitude = (ds.longitude + 360)%360)
+
     if lats.max() > ds.latitude[0] or lats.min() < ds.latitude[-1]:
         error = True
-        message += f"\n    Latitudes: Target ({lats.min().values:.2f}:{lats.max().values:.2f}), ERA5 (-57:20)"
+        message += f"\n    Latitudes: Target ({lats.min():.2f}:{lats.max():.2f}), ERA5 ({ds.latitude.values[0]}:{ds.latitude.values[-1]})"
     if lons.min() < ds.longitude[0] or lons.max() > ds.longitude[-1]:
         error = True
-        message += f"\n    Longitudes: Target ({lons.min().values:.2f}:{lons.max().values:.2f}), ERA5 (78:220)"
+        message += f"\n    Longitudes: Target ({lons.min():.2f}:{lons.max():.2f}), ERA5 ({ds.longitude.values[0]}:{ds.longitude.values[-1]})"
 
     if error:
         raise IndexError(message)
@@ -347,7 +99,15 @@ def select_domain(ds, lats, lons):
     )
 
 
-def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
+def era5grib_wrf(
+    start=None,
+    end=None,
+    output=None,
+    namelist=None,
+    geo=None,
+    source="NCI",
+    format="grib",
+):
     """
     Convert the NCI ERA5 archive data to GRIB format for use in WRF limited
     area modelling.
@@ -388,24 +148,29 @@ def era5grib_wrf(start=None, end=None, output=None, namelist=None, geo=None):
     if output is None:
         output = "GRIBFILE.AAA"
 
-    ds = read_wrf(start, end)
+    logging.info(f"Time: Target ({start}:{end})")
+
+    if source == "CLEX":
+        ds = clex.read_wrf(start, end)
+    else:
+        ds = nci.read_wrf(start, end)
 
     if geo is not None:
         geo = xarray.open_dataset(geo)
 
         lons = geo.XLONG_M.where(geo.XLONG_M > 0, geo.XLONG_M + 360)
 
-        ds = select_domain(ds, lats=geo.XLAT_M, lons=lons)
+        ds = select_domain(ds, lats=geo.XLAT_M.values, lons=lons.values)
 
     else:
-        print("WARNING: Outputting the full domain, use --geo=geo_em.d01.nc to limit")
+        logging.warn("Outputting the full domain, use --geo=geo_em.d01.nc to limit")
 
-    save_grib(ds, output)
+    save_grib(ds, output, format=format)
 
-    print(f"Wrote {output}")
+    logging.info(f"Wrote {output}")
 
 
-def era5grib_um(time, output=None, target=None):
+def era5grib_um(time, output=None, target=None, source="NCI", format="grib"):
     """
     Convert the NCI ERA5 archive data to GRIB format for use in UM limited area
     modelling.
@@ -417,7 +182,12 @@ def era5grib_um(time, output=None, target=None):
     on the target grid as 'target'
     """
 
-    ds = read_um(time)
+    logging.info(f"Time: Target ({time})")
+
+    if source == "CLEX":
+        ds = clex.read_um(time)
+    else:
+        ds = nci.read_um(time)
 
     if output is None:
         output = f"um.era5.{pandas.to_datetime(ds.time.values[0]).strftime('%Y%m%dT%H%M')}.grib"
@@ -428,42 +198,14 @@ def era5grib_um(time, output=None, target=None):
         lat = cube.coord("latitude").points
         lon = cube.coord("longitude").points
 
-        if (
-            lat.max() > ds.latitude[0]
-            or lat.min() < ds.latitude[-1]
-            or lon.min() < ds.longitude[0]
-            or lon.max() > ds.longitude[-1]
-        ):
-            raise IndexError("Selected domain is outside the NCI ERA5 archive")
+        ds = select_domain(ds, lats=lat, lons=lon)
 
-        ds = ds.sel(
-            latitude=slice(lat.max() + 1, lat.min() - 1),
-            longitude=slice(lon.min() - 1, lon.max() + 1),
-        )
     else:
-        print("WARNING: Outputting the full domain, use --target=qrparm.mask to limit")
+        logging.warn("Outputting the full domain, use --target=qrparm.mask to limit")
 
-    save_grib(ds, output)
+    save_grib(ds, output, format=format)
 
-    print(f"Wrote {output}")
-
-
-def init():
-    global fx
-
-    fx = xarray.open_dataset("/g/data/ub4/era5/netcdf/static_era5.nc").isel(time=0)
-    fx = fx.sel(latitude=slice(20, -57), longitude=slice(78, 220))
-    fx.lsm.attrs["code"] = numpy.int32(172)
-    fx.z.attrs["code"] = numpy.int32(129)
-
-    global catalogue
-    catalogue = pandas.read_csv(
-        resource_stream(__name__, "catalogue.csv"), index_col=["product", "varname"]
-    )
-    weights = xarray.open_dataset(resource_filename(__name__, "regrid_weights.nc"))
-
-    global regridder
-    regridder = Regridder(weights=weights)
+    logging.info(f"Wrote {output}")
 
 
 def main():
@@ -490,6 +232,13 @@ def main():
     wrf.add_argument("--end", help="Output end time", type=pandas.to_datetime)
     wrf.add_argument("--output", help="Output file")
     wrf.add_argument("--geo", help="Geogrid file for trimming (e.g. geo_em.d01.nc)")
+    wrf.add_argument(
+        "--format", help="Output format", choices=["grib", "netcdf"], default="grib"
+    )
+    wrf.add_argument(
+        "--source", help="Data project source", choices=["NCI", "CLEX"], default="NCI"
+    )
+    wrf.add_argument("--debug", help="Debug output", action="store_true")
 
     um = subp.add_parser(
         "um",
@@ -503,6 +252,13 @@ def main():
     um.add_argument(
         "--target", help="UM file on the target grid for trimming (e.g. qrparm.mask)"
     )
+    um.add_argument(
+        "--format", help="Output format", choices=["grib", "netcdf"], default="grib"
+    )
+    um.add_argument(
+        "--source", help="Data project source", choices=["NCI", "CLEX"], default="NCI"
+    )
+    um.add_argument("--debug", help="Debug output", action="store_true")
 
     args = parser.parse_args()
 
@@ -517,10 +273,14 @@ def main():
     else:
         client = climtas.nci.GadiClient()
 
-    init()
-
     dargs = vars(args)
     func = dargs.pop("func")
+    debug = dargs.pop("debug")
+
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     func(**dargs)
 
