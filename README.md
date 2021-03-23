@@ -1,5 +1,5 @@
 # era5grib
-Convert [NCI ERA5 archive](http://climate-cms.wikis.unsw.edu.au/ERA5) data to GRIB format
+Convert [NCI ERA5 archive](https://opus.nci.org.au/display/ERA5/ERA5+Community+Home) data to GRIB format
 
 ## Using era5grib
 
