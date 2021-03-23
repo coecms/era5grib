@@ -3,13 +3,18 @@ Convert [NCI ERA5 archive](http://climate-cms.wikis.unsw.edu.au/ERA5) data to GR
 
 ## Using era5grib
 
-To use era5grib you will need to be a member of the [hh5](https://my.nci.org.au/mancini/project/hh5/join) (conda) and [ub4](https://my.nci.org.au/mancini/project/ub4/join) (ERA5) projects at NCI
+To use era5grib you will need to be a member of the [hh5](https://my.nci.org.au/mancini/project/hh5/join) (conda), [rt52](https://my.nci.org.au/mancini/project/rt52/join) (ERA5) and [zz93](https://my.nci.org.au/mancini/project/zz93/join) (ERA5-land) projects at NCI
 
 Load the conda environment with
 ```bash
 module use /g/data3/hh5/public/modules
-module load conda/analysis3-20.10
+module load conda/analysis3-21.01
 ```
+
+## Values over land
+
+Variables over land use ERA5land instead of ERA5 surface values, as ERA5land is deemed to be more accurate.
+ERA5land values are regridded to the ERA5 grid using a bilinear interpolation method, with data over the ocean filled in using ERA5 surface values where available.
 
 ### WRF output
 
@@ -33,16 +38,3 @@ era5grib um --time 20200101T1200 --target qrparm.mask --output era5.20200101T120
 
 The output file should then be processed using the UM reconfiguration
 
-## Limitations
-
-The NCI ERA5 archive only covers pressure levels in the Australian region: latitude: 20 to -57, longitude: 78 to 220.
-If your domain is outside of the archive domain then era5grib will exit with an error.
-
-Variables over land use ERA5land instead of ERA5 surface values, as ERA5land is deemed to be more accurate.
-ERA5land values are regridded to the ERA5 grid using a patch interpolation method, with data over the ocean filled in using ERA5 surface values where available.
-
-## Developer Info
-
-Regridding weights can be regenerated using the function `era5grib.gen_weights()`
-
-The catalogue file can be regenerated using the script `gen_catalogue.py`
