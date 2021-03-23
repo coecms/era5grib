@@ -17,9 +17,7 @@
 import era5grib
 
 def test_single_time(tmpdir):
-    era5grib.init()
-    era5grib.era5grib_wrf(namelist='test/single-time.wps', geo='test/geo_em.d01.nc', output=tmpdir / 'test.grib')
+    era5grib.era5grib_wrf(namelist='test/single-time.wps', geo='test/geo_em.d01.nc', output=tmpdir / 'test.grib', source='CLEX')
 
 def test_multi_time(tmpdir):
-    era5grib.init()
-    era5grib.era5grib_wrf(namelist='test/multi-time.wps', geo='test/geo_em.d01.nc', output=tmpdir / 'test.grib')
+    era5grib.era5grib_wrf(namelist='test/multi-time.wps', geo='test/geo_em.d01.nc', output=tmpdir / 'test.grib', source='CLEX')

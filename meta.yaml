@@ -26,6 +26,8 @@ requirements:
         - iris
         - f90nml
         - cdo
+        - intake
+        - xesmf
 
 test:
     requires:
