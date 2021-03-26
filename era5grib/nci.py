@@ -29,7 +29,7 @@ def paramdb():
     return intake.cat.nci.ecmwf.grib_parameters.read()
 
 
-def load_var(cat, chunks={"time": 1}, **kwargs):
+def load_var(cat, chunks={"time": 12}, **kwargs):
     """
     Load a single variable from intake
 
@@ -119,7 +119,7 @@ def read_era5_pressure(var, year, month):
         month=month,
         product_type="reanalysis",
         dataset="pressure-levels",
-        chunks={"time": 1, "level": 1},
+        chunks={"time": 12, "level": 1},
     )
     da.name = da.name + "_pl"
     return da
@@ -150,7 +150,7 @@ def merged_land_surf(var, year, month):
     lsm = read_era5_surface("lsm", 2000, 1)[0, :, :]
     surf = read_era5_surface(var, year, month)
 
-    if var == 'ci':
+    if var in ['ci', '10u', '10v', 'msl', 'sst']:
         # No land value
         return surf.fillna(0)
 
