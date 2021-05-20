@@ -152,7 +152,7 @@ def merged_land_surf(var, year, month):
 
     if var in ['ci', '10u', '10v', 'msl', 'sst']:
         # No land value
-        return surf.fillna(0)
+        return surf
 
     if var.startswith('stl') or var.startswith('swvl'):
         # Don't merge with surf
@@ -260,6 +260,12 @@ def read_wrf(start, end):
     )
 
     ds = soil_level_metadata(ds)
+
+    for v in ds.values():
+        if v.dtype == 'float64':
+            v.encoding['dtype'] = 'float32'
+        if v.dtype == 'int64':
+            v.encoding['dtype'] = 'int32'
 
     return ds
 
