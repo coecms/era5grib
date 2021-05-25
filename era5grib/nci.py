@@ -162,7 +162,7 @@ def merged_land_surf(var, year, month):
     else:
         # Merge surf over ocean with land
         land = read_era5_land(var, year, month)
-        land_on_surf = regrid()(land) * lsm + surf[0, ...] * (1 - lsm)
+        land_on_surf = regrid()(land) * lsm + surf * (1 - lsm)
 
     land_on_surf.name = surf.name
     land_on_surf.attrs = surf.attrs
@@ -184,6 +184,10 @@ def read_era5(surface_vars, pressure_vars, start, end):
     """
     Read a collection of surface and pressure level values between start and end
     """
+
+    if start <= pandas.Timestamp('1981-01-01T00:00'):
+        raise Exception(f"Start time {start} is before ERA5-Land start date 1981-01-01T01:00")
+
     t0 = pandas.offsets.MonthBegin().rollback(start.date())
     t1 = pandas.offsets.MonthEnd().rollforward(end.date())
 
