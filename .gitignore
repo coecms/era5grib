@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 
 PET*.RegridWeightGen.Log
+*.swp
