@@ -169,7 +169,7 @@ def merged_land_surf(var, year, month):
         if (year, month) == (1981, 1):
             # Fill in 19810101T0000 with values from 19810101T0100
             surf, land = xarray.align(surf, land, join='left', exclude=['latitude', 'longitude'])
-            land = land.bfill('time', limit=1)
+            land = land.bfill('time', limit=None)
 
         land_on_surf = regrid()(land) * lsm + surf * (1 - lsm)
 
