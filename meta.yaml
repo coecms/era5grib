@@ -23,7 +23,7 @@ requirements:
         - pandas
         - xarray
         - climtas
-        - iris
+        - mule
         - f90nml
         - cdo
         - intake

@@ -193,10 +193,19 @@ def era5grib_um(time, output=None, target=None, source="NCI", format="grib"):
         output = f"um.era5.{pandas.to_datetime(ds.time.values[0]).strftime('%Y%m%dT%H%M')}.grib"
 
     if target is not None:
-        cube = iris.load(target)[0]
+        mf = mule.load_umfile(target)
 
-        lat = cube.coord("latitude").points
-        lon = cube.coord("longitude").points
+        ny = mf.integer_constants.num_rows
+        nx = mf.integer_constants.num_rows
+
+        y0 = mf.real_constants.start_lat
+        x0 = mf.real_constants.start_lon
+
+        dy = mf.real_constants.row_spacing
+        dx = mf.real_constants.col_spacing
+
+        lat = y0 + numpy.arange(ny) * dy
+        lon = x0 + numpy.arange(nx) * dx
 
         ds = select_domain(ds, lats=lat, lons=lon)
 
