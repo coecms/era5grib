@@ -196,7 +196,7 @@ def era5grib_um(time, output=None, target=None, source="NCI", format="grib"):
         mf = mule.load_umfile(target)
 
         ny = mf.integer_constants.num_rows
-        nx = mf.integer_constants.num_rows
+        nx = mf.integer_constants.num_cols
 
         y0 = mf.real_constants.start_lat
         x0 = mf.real_constants.start_lon
@@ -206,6 +206,9 @@ def era5grib_um(time, output=None, target=None, source="NCI", format="grib"):
 
         lat = y0 + numpy.arange(ny) * dy
         lon = x0 + numpy.arange(nx) * dx
+
+        print(x0, dx, nx, lon[0], lon[-1])
+        print(y0, dy, ny, lat[0], lat[-1])
 
         ds = select_domain(ds, lats=lat, lons=lon)
 
