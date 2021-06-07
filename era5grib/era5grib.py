@@ -24,7 +24,7 @@ import subprocess
 from climtas.regrid import Regridder
 import climtas
 import climtas.nci
-import iris
+import mule
 from glob import glob
 import f90nml
 from pkg_resources import resource_stream, resource_filename
