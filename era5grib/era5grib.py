@@ -41,6 +41,9 @@ def save_grib(ds, output, format="grib"):
     """
     Save a dataset to GRIB format
     """
+
+    ds.time.encoding['units'] = 'hours since 1970-01-01'
+
     if format == "netcdf":
         climtas.io.to_netcdf_throttled(ds, output)
         return
