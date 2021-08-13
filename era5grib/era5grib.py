@@ -42,7 +42,7 @@ def save_grib(ds, output, format="grib"):
     Save a dataset to GRIB format
     """
 
-    ds.time.encoding['units'] = 'hours since 1970-01-01'
+    ds.time.encoding["units"] = "hours since 1970-01-01"
 
     if format == "netcdf":
         climtas.io.to_netcdf_throttled(ds, output)
@@ -83,8 +83,8 @@ def select_domain(ds, lats, lons):
 
     if ds.longitude[-1] < 180 and lons.max() > 180:
         # Roll longitude
-        ds = ds.roll(longitude=ds.sizes['longitude']//2, roll_coords=True)
-        ds = ds.assign_coords(longitude = (ds.longitude + 360)%360)
+        ds = ds.roll(longitude=ds.sizes["longitude"] // 2, roll_coords=True)
+        ds = ds.assign_coords(longitude=(ds.longitude + 360) % 360)
 
     if lats.max() > ds.latitude[0] or lats.min() < ds.latitude[-1]:
         error = True
@@ -110,6 +110,7 @@ def era5grib_wrf(
     geo=None,
     source="NCI",
     format="grib",
+    era5land: bool = True,
 ):
     """
     Convert the NCI ERA5 archive data to GRIB format for use in WRF limited
@@ -156,7 +157,7 @@ def era5grib_wrf(
     if source == "CLEX":
         ds = clex.read_wrf(start, end)
     else:
-        ds = nci.read_wrf(start, end)
+        ds = nci.read_wrf(start, end, era5land=era5land)
 
     if geo is not None:
         geo = xarray.open_dataset(geo)
@@ -173,7 +174,9 @@ def era5grib_wrf(
     logging.info(f"Wrote {output}")
 
 
-def era5grib_um(time, output=None, target=None, source="NCI", format="grib"):
+def era5grib_um(
+    time, output=None, target=None, source="NCI", format="grib", era5land: bool = True
+):
     """
     Convert the NCI ERA5 archive data to GRIB format for use in UM limited area
     modelling.
@@ -190,7 +193,7 @@ def era5grib_um(time, output=None, target=None, source="NCI", format="grib"):
     if source == "CLEX":
         ds = clex.read_um(time)
     else:
-        ds = nci.read_um(time)
+        ds = nci.read_um(time, era5land=era5land)
 
     if output is None:
         output = f"um.era5.{pandas.to_datetime(ds.time.values[0]).strftime('%Y%m%dT%H%M')}.grib"
@@ -253,6 +256,12 @@ def main():
     wrf.add_argument(
         "--source", help="Data project source", choices=["NCI", "CLEX"], default="NCI"
     )
+    wrf.add_argument(
+        "--era5land",
+        help="Use era5land over land",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     wrf.add_argument("--debug", help="Debug output", action="store_true")
 
     um = subp.add_parser(
@@ -272,6 +281,12 @@ def main():
     )
     um.add_argument(
         "--source", help="Data project source", choices=["NCI", "CLEX"], default="NCI"
+    )
+    um.add_argument(
+        "--era5land",
+        help="Use era5land over land",
+        action=argparse.BooleanOptionalAction,
+        default=True,
     )
     um.add_argument("--debug", help="Debug output", action="store_true")
 

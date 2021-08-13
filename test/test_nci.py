@@ -18,30 +18,34 @@ from era5grib.nci import *
 import pandas
 import pytest
 
+
 def test_19810101T0000():
     # era5land only available for some fields
-    date = pandas.to_datetime('19810101T0000')
+    date = pandas.to_datetime("19810101T0000")
     ds = read_wrf(date, date)
 
     assert numpy.all(numpy.isfinite(ds.sp_surf))
+
 
 def test_19810101T0100():
     # era5land available for all fields
-    date = pandas.to_datetime('19810101T0100')
+    date = pandas.to_datetime("19810101T0100")
     ds = read_wrf(date, date)
 
     assert numpy.all(numpy.isfinite(ds.sp_surf))
+
 
 def test_19790101T0000():
     # era5land not available
-    date = pandas.to_datetime('19790101T0000')
+    date = pandas.to_datetime("19790101T0000")
     ds = read_wrf(date, date)
 
     assert numpy.all(numpy.isfinite(ds.sp_surf))
 
+
 def test_19781231T2300():
     # era5 not available
-    date = pandas.to_datetime('19781231T2300')
+    date = pandas.to_datetime("19781231T2300")
 
     with pytest.raises(ValueError):
         ds = read_wrf(date, date)
