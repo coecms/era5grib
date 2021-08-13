@@ -19,6 +19,8 @@ ERA5land values are regridded to the ERA5 grid using a bilinear interpolation me
 Between 1979-01-01 and the ERA5land start date 1981-01-01 values come purely from ERA5. Additionally some ERA5land fields are only present from 1981-01-01T01:00 onwards,
 in which case the land values from 01:00 are used for 1981-01-01T00:00
 
+Using ERA5land can be disabled with the option `--no-era5land`
+
 ### WRF output
 
 era5grib can read in the model run dates from your WPS namelist, or you can specify the start and end dates on the command line.

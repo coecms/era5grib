@@ -151,13 +151,13 @@ def merged_land_surf(var, year, month):
     surf = read_era5_surface(var, year, month)
 
     # Different names in era5 and era5-land
-    renamed_vars = {'10u': 'u10', '10v': 'v10'}
+    renamed_vars = {"10u": "u10", "10v": "v10"}
 
-    if var in ['ci', 'msl', 'sst'] or year < 1981:
+    if var in ["ci", "msl", "sst"] or year < 1981:
         # No land value
         return surf
 
-    if var.startswith('stl') or var.startswith('swvl'):
+    if var.startswith("stl") or var.startswith("swvl"):
         # Don't merge with surf
         land = read_era5_land(var, year, month)
         land_on_surf = regrid()(land)
@@ -168,8 +168,10 @@ def merged_land_surf(var, year, month):
 
         if (year, month) == (1981, 1):
             # Fill in 19810101T0000 with values from 19810101T0100
-            surf, land = xarray.align(surf, land, join='left', exclude=['latitude', 'longitude'])
-            land = land.bfill('time', limit=None)
+            surf, land = xarray.align(
+                surf, land, join="left", exclude=["latitude", "longitude"]
+            )
+            land = land.bfill("time", limit=None)
 
         land_on_surf = regrid()(land) * lsm + surf * (1 - lsm)
 
@@ -179,23 +181,29 @@ def merged_land_surf(var, year, month):
     return land_on_surf
 
 
-def read_era5_month(surface_vars, pressure_vars, year, month):
+def read_era5_month(surface_vars, pressure_vars, year, month, era5land: bool = True):
     """
     Read a collection of surface and pressure level values for a single month
     """
-    surf = [merged_land_surf(v, year, month) for v in surface_vars]
+    if era5land:
+        surf = [merged_land_surf(v, year, month) for v in surface_vars]
+    else:
+        surf = [read_era5_surface(v, year, month) for v in surface_vars]
+
     plev = [read_era5_pressure(v, year, month) for v in pressure_vars]
 
     return xarray.merge([*surf, *plev])
 
 
-def read_era5(surface_vars, pressure_vars, start, end):
+def read_era5(surface_vars, pressure_vars, start, end, era5land: bool = True):
     """
     Read a collection of surface and pressure level values between start and end
     """
 
-    if start < pandas.Timestamp('1979-01-01T00:00'):
-        raise ValueError(f"Start time {start} is before ERA5 start date 1979-01-01T00:00")
+    if start < pandas.Timestamp("1979-01-01T00:00"):
+        raise ValueError(
+            f"Start time {start} is before ERA5 start date 1979-01-01T00:00"
+        )
 
     t0 = pandas.offsets.MonthBegin().rollback(start.date())
     t1 = pandas.offsets.MonthEnd().rollforward(end.date())
@@ -203,7 +211,11 @@ def read_era5(surface_vars, pressure_vars, start, end):
     result = []
 
     for t in pandas.date_range(t0, t1, freq="M"):
-        result.append(read_era5_month(surface_vars, pressure_vars, t.year, t.month))
+        result.append(
+            read_era5_month(
+                surface_vars, pressure_vars, t.year, t.month, era5land=era5land
+            )
+        )
 
     ds = xarray.concat(result, dim="time")
 
@@ -213,7 +225,7 @@ def read_era5(surface_vars, pressure_vars, start, end):
     return ds.sel(time=slice(start, end))
 
 
-def read_um(time):
+def read_um(time, era5land: bool = True):
     # Make sure the time includes an hour
     start = pandas.offsets.Hour().rollback(time)
     ds = read_era5(
@@ -234,6 +246,7 @@ def read_um(time):
         ["u", "v", "t", "q"],
         start,
         start,
+        era5land=era5land,
     )
 
     for k, v in ds.items():
@@ -244,7 +257,7 @@ def read_um(time):
     return ds
 
 
-def read_wrf(start, end):
+def read_wrf(start, end, era5land: bool = True):
     ds = read_era5(
         [
             "10u",
@@ -270,15 +283,16 @@ def read_wrf(start, end):
         ["z", "u", "v", "t", "r"],
         start,
         end,
+        era5land=era5land,
     )
 
     ds = soil_level_metadata(ds)
 
     for v in ds.values():
-        if v.dtype == 'float64':
-            v.encoding['dtype'] = 'float32'
-        if v.dtype == 'int64':
-            v.encoding['dtype'] = 'int32'
+        if v.dtype == "float64":
+            v.encoding["dtype"] = "float32"
+        if v.dtype == "int64":
+            v.encoding["dtype"] = "int32"
 
     return ds
 

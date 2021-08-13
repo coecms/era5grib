@@ -261,7 +261,7 @@ def save_grib(ds, output):
 
 
 def read_um(time):
-    
+
     init()
 
     # Make sure the time includes an hour
