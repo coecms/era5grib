@@ -30,7 +30,7 @@ You can also pass in your geogrid output file and only that area will be convert
 era5grib wrf --namelist namelist.wps --geo geo_em.d01.nc --output GRIBFILE.AAA
 ```
 
-The output can be passed to ungrib, using the ERA-Interim pressure level Vtable
+The output can be passed to ungrib, using Vtable `Vtable.ERA-interim.pl` and metgrid using table `METGRID.TBL.ERAI`
 
 ### UM output
 
