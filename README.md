@@ -43,3 +43,14 @@ era5grib um --time 20200101T1200 --target qrparm.mask --output era5.20200101T120
 
 The output file should then be processed using the UM reconfiguration
 
+## Customising output
+
+To modify the output of era5grib you can get it to output its data in netcdf format, modify that netcdf file, then convert to grib1 format with CDO
+
+```bash
+era5grib wrf --namelist namelist.wps --geo geo_em.d01.nc --format netcdf --output intermediate.nc
+
+# Modify intermediate.nc as desired
+
+cdo -f grb1 -t ecmwf copy intermediate.nc GRIBFILE.AAA
+```
