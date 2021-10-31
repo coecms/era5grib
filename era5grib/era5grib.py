@@ -92,6 +92,7 @@ def select_domain(ds, lats, lons):
     if lons.min() < ds.longitude[0] or lons.max() > ds.longitude[-1]:
         error = True
         message += f"\n    Longitudes: Target ({lons.min():.2f}:{lons.max():.2f}), ERA5 ({ds.longitude.values[0]}:{ds.longitude.values[-1]})"
+        message += "\nTry the --polar flag to include all longitudes"
 
     if error:
         raise IndexError(message)
@@ -111,6 +112,7 @@ def era5grib_wrf(
     source="NCI",
     format="grib",
     era5land: bool = True,
+    polar: bool = False,
 ):
     """
     Convert the NCI ERA5 archive data to GRIB format for use in WRF limited
@@ -162,9 +164,12 @@ def era5grib_wrf(
     if geo is not None:
         geo = xarray.open_dataset(geo)
 
-        lons = geo.XLONG_M.where(geo.XLONG_M > 0, geo.XLONG_M + 360)
+        if not polar:
+            lons = geo.XLONG_M.where(geo.XLONG_M > 0, geo.XLONG_M + 360).values
+        else:
+            lons = numpy.array([0, 359.75])
 
-        ds = select_domain(ds, lats=geo.XLAT_M.values, lons=lons.values)
+        ds = select_domain(ds, lats=geo.XLAT_M.values, lons=lons)
 
     else:
         logging.warn("Outputting the full domain, use --geo=geo_em.d01.nc to limit")
@@ -175,7 +180,13 @@ def era5grib_wrf(
 
 
 def era5grib_um(
-    time, output=None, target=None, source="NCI", format="grib", era5land: bool = True
+    time,
+    output=None,
+    target=None,
+    source="NCI",
+    format="grib",
+    era5land: bool = True,
+    polar: bool = False,
 ):
     """
     Convert the NCI ERA5 archive data to GRIB format for use in UM limited area
@@ -211,7 +222,10 @@ def era5grib_um(
         dx = mf.real_constants.col_spacing
 
         lat = y0 + numpy.arange(ny) * dy
-        lon = x0 + numpy.arange(nx) * dx
+        if not polar:
+            lon = x0 + numpy.arange(nx) * dx
+        else:
+            lon = numpy.array([0, 359.75])
 
         print(x0, dx, nx, lon[0], lon[-1])
         print(y0, dy, ny, lat[0], lat[-1])
@@ -262,6 +276,12 @@ def main():
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    wrf.add_argument(
+        "--polar",
+        help="Include all longitudes",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
     wrf.add_argument("--debug", help="Debug output", action="store_true")
 
     um = subp.add_parser(
@@ -287,6 +307,12 @@ def main():
         help="Use era5land over land",
         action=argparse.BooleanOptionalAction,
         default=True,
+    )
+    um.add_argument(
+        "--polar",
+        help="Include all longitudes",
+        action=argparse.BooleanOptionalAction,
+        default=False,
     )
     um.add_argument("--debug", help="Debug output", action="store_true")
 
