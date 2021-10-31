@@ -164,11 +164,11 @@ def era5grib_wrf(
         geo = xarray.open_dataset(geo)
 
         if not polar:
-            lons = geo.XLONG_M.where(geo.XLONG_M > 0, geo.XLONG_M + 360)
+            lons = geo.XLONG_M.where(geo.XLONG_M > 0, geo.XLONG_M + 360).values
         else:
-            lons = numpy.array([0, 360])
+            lons = numpy.array([0, 359.75])
 
-        ds = select_domain(ds, lats=geo.XLAT_M.values, lons=lons.values)
+        ds = select_domain(ds, lats=geo.XLAT_M.values, lons=lons)
 
     else:
         logging.warn("Outputting the full domain, use --geo=geo_em.d01.nc to limit")
@@ -224,7 +224,7 @@ def era5grib_um(
         if not polar:
             lon = x0 + numpy.arange(nx) * dx
         else:
-            lon = numpy.array([0, 360])
+            lon = numpy.array([0, 359.75])
 
         print(x0, dx, nx, lon[0], lon[-1])
         print(y0, dy, ny, lat[0], lat[-1])
