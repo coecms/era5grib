@@ -92,6 +92,7 @@ def select_domain(ds, lats, lons):
     if lons.min() < ds.longitude[0] or lons.max() > ds.longitude[-1]:
         error = True
         message += f"\n    Longitudes: Target ({lons.min():.2f}:{lons.max():.2f}), ERA5 ({ds.longitude.values[0]}:{ds.longitude.values[-1]})"
+        message += "\nTry the --polar flag to include all longitudes"
 
     if error:
         raise IndexError(message)
