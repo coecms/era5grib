@@ -132,9 +132,15 @@ def regrid():
     """
     land = read_era5_land("2t", 2000, 1)
     surf = read_era5_surface("2t", 2000, 1)
+    # to solve issue #10 Regridder accept a xarray Dataset not DataArray
+    land = land.isel(time=0).squeeze(drop=True)
+    surf = surf.isel(time=0).squeeze(drop=True)
+    # in theory using drop=True should remove the time scalar variable but it's not working
+    landds = land.drop('time').to_dataset()
+    surfds = surf.drop('time').to_dataset()
     return xesmf.Regridder(
-        land[0, ...],
-        surf[0, ...],
+        landds,
+        surfds,
         "bilinear",
         filename=resource_filename(__name__, "nci_regrid_weights.nc"),
         reuse_weights=True,

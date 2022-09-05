@@ -37,11 +37,12 @@ from . import clex as clex
 import logging
 
 
-def save_grib(ds, output, format="grib"):
+def save_grib(ds, output, model, format="grib"):
     """
     Save a dataset to GRIB format
     """
 
+    # should be this changed as now data goes back to 1950?
     ds.time.encoding["units"] = "hours since 1970-01-01"
 
     if format == "netcdf":
@@ -50,19 +51,25 @@ def save_grib(ds, output, format="grib"):
 
     with tempfile.NamedTemporaryFile() as tmp1, tempfile.NamedTemporaryFile() as tmp2:
         logging.info("Creating intermediate file")
-        # Saving with compression is fast here
-        tmp_compressed = tmp1.name
-        climtas.io.to_netcdf_throttled(ds, tmp_compressed)
-
-        logging.info("Decompressing intermediate file")
-        mark = time.perf_counter()
-        # Decompress the data for CDO's benefit
-        ds = xarray.open_dataset(tmp_compressed, chunks={"time": 1})
+        # issue #11  skipping call to netcdf_throttled as it fails when using
+        # era5land data
+        # this is a temporary fix to make sure at least the UM that produces a
+        # small file can get through
+        if model != 'um':
+            # Saving with compression is fast here
+            tmp_compressed = tmp1.name
+            climtas.io.to_netcdf_throttled(ds, tmp_compressed)
+            logging.info("Decompressing intermediate file")
+            mark = time.perf_counter()
+            # Decompress the data for CDO's benefit
+            ds = xarray.open_dataset(tmp_compressed, chunks={"time": 1})
+        # resume from here issue #11 temp fix
         encoding = {
             k: {"complevel": 0, "chunksizes": None, "_FillValue": -1e10}
             for k in ds.keys()
         }
         tmp_uncompressed = tmp2.name
+        mark = time.perf_counter()
         ds.to_netcdf(tmp_uncompressed, encoding=encoding)
         logging.info(f"Decompress time {time.perf_counter() - mark}")
 
