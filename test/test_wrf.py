@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import era5grib
+import pytest
 
 # currently both tests are failing because of issue with to_netcdf-throttled call
 @pytest.mark.xfail
