@@ -181,7 +181,7 @@ def era5grib_wrf(
     else:
         logging.warn("Outputting the full domain, use --geo=geo_em.d01.nc to limit")
 
-    save_grib(ds, output, format=format)
+    save_grib(ds, output, 'wrf', format=format)
 
     logging.info(f"Wrote {output}")
 
@@ -242,7 +242,7 @@ def era5grib_um(
     else:
         logging.warn("Outputting the full domain, use --target=qrparm.mask to limit")
 
-    save_grib(ds, output, format=format)
+    save_grib(ds, output, 'um', format=format)
 
     logging.info(f"Wrote {output}")
 
