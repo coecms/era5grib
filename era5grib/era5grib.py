@@ -37,7 +37,7 @@ from . import clex as clex
 import logging
 
 
-def save_grib(ds, output, model, format="grib"):
+def save_grib(ds, output, format="grib"):
     """
     Save a dataset to GRIB format
     """
@@ -53,9 +53,9 @@ def save_grib(ds, output, model, format="grib"):
         logging.info("Creating intermediate file")
         # issue #11  skipping call to netcdf_throttled as it fails when using
         # era5land data
-        # this is a temporary fix to make sure at least the UM that produces a
-        # small file can get through
-        if model != 'um':
+        # this is a temporary fix to make sure files get saved
+        # it could potentially fail for bigger files
+        if True:
             # Saving with compression is fast here
             tmp_compressed = tmp1.name
             climtas.io.to_netcdf_throttled(ds, tmp_compressed)
@@ -181,7 +181,7 @@ def era5grib_wrf(
     else:
         logging.warn("Outputting the full domain, use --geo=geo_em.d01.nc to limit")
 
-    save_grib(ds, output, 'wrf', format=format)
+    save_grib(ds, output, format=format)
 
     logging.info(f"Wrote {output}")
 
@@ -242,7 +242,7 @@ def era5grib_um(
     else:
         logging.warn("Outputting the full domain, use --target=qrparm.mask to limit")
 
-    save_grib(ds, output, 'um', format=format)
+    save_grib(ds, output, format=format)
 
     logging.info(f"Wrote {output}")
 
