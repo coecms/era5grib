@@ -37,7 +37,7 @@ from . import clex as clex
 import logging
 
 
-def save_grib(ds, output, format="grib",  era5land=era5land):
+def save_grib(ds, output, format="grib",  era5land=True):
     """
     Save a dataset to GRIB format
     """
