@@ -55,7 +55,7 @@ def save_grib(ds, output, format="grib",  era5land=True):
         # era5land data
         # this is a temporary fix to make sure files get saved
         # it could potentially fail for bigger files
-        if era5land:
+        if not era5land:
             # Saving with compression is fast here
             tmp_compressed = tmp1.name
             climtas.io.to_netcdf_throttled(ds, tmp_compressed)
