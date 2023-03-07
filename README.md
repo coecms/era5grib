@@ -16,8 +16,7 @@ module load conda/analysis3
 Variables over land use ERA5land instead of ERA5 surface values, as ERA5land is deemed to be more accurate.
 ERA5land values are regridded to the ERA5 grid using a bilinear interpolation method, with data over the ocean filled in using ERA5 surface values where available.
 
-Between 1979-01-01 and the ERA5land start date 1981-01-01 values come purely from ERA5. Additionally some ERA5land fields are only present from 1981-01-01T01:00 onwards,
-in which case the land values from 01:00 are used for 1981-01-01T00:00
+Currently ERA5 and ERA5-land have been extended backwards and now starts from 1950-01-01.
 
 Using ERA5land can be disabled with the option `--no-era5land`
 
