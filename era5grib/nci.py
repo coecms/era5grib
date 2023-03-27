@@ -46,7 +46,11 @@ def load_var(cat, chunks={"time": 12}, **kwargs):
         raise Exception(f"No matches: {cat.name} {kwargs}")
 
     # Prefer era5-1
-    if "era5-1" in result.unique().get("sub_collection", {"values": []})["values"]:
+
+    # This fails as now get subcollection returns a list not a dictionary
+    #if "era5-1" in result.unique().get("sub_collection", {"values": []})["values"]:
+    unique_values = result.unique()
+    if "era5-1" in unique_values.get("sub_collection", []):
         result = result.search(sub_collection="era5-1")
 
     logging.debug(f"Opening {result.df.path.values}")
@@ -58,7 +62,7 @@ def load_var(cat, chunks={"time": 12}, **kwargs):
 
     ds = list(d.values())[0]
 
-    da = ds[ds.attrs["intake_esm_varname"][0]]
+    da = ds[ds.attrs["intake_esm_vars"][0]]
 
     params = paramdb()
     params = params[params.cfVarName == da.name]
