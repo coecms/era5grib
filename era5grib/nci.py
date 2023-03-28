@@ -55,7 +55,7 @@ def load_var(cat, chunks={"time": 12}, **kwargs):
 
     logging.debug(f"Opening {result.df.path.values}")
 
-    d = result.to_dataset_dict(cdf_kwargs={"chunks": chunks}, progressbar=False)
+    d = result.to_dataset_dict(xarray_open_kwargs={"chunks": chunks}, progressbar=False)
 
     if len(d) > 1:
         raise Exception(f"Multiple matches: {kwargs} {d.keys()}")
