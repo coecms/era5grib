@@ -22,7 +22,6 @@ requirements:
         - python
         - pandas
         - xarray
-        - climtas
         - mule
         - f90nml
         - cdo

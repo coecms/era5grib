@@ -1,0 +1,37 @@
+land_mask:
+  era5:
+    field: lsm
+    ref_date: '20010101'
+subcollection_pref:
+  era5: era5-1
+land_only:
+  - stl1
+  - stl2
+  - stl3
+  - stl4
+  - swvl1
+  - swvl2
+  - swvl3
+  - swvl4
+ocean_only:
+  - ci
+  - msl
+  - sst
+validity_start:
+  era5land: '19500101'
+  era5: '19400101'
+equivalent_vars:
+  10u: u10
+  10v: v10
+regridding:
+  ref_field: 2t
+  ref_date: '20010101'
+defaults:
+  catalogue_path: /g/data/hh5/public/apps/nci-intake-catalogue/catalogue_new.yaml
+  catalogues:
+    - era5_land
+    - era5
+  format: grib
+  regrid: era5
+  polar: False
+  log_level: warning

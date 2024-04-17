@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .era5grib import *
+from . import main,logging,config,domain
 
 from ._version import get_versions
 

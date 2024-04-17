@@ -42,6 +42,7 @@ def save_grib(ds, output, format="grib",  era5land=True):
     Save a dataset to GRIB format
     """
 
+    print("Saving...")
     # should be this changed as now data goes back to 1950?
     ds.time.encoding["units"] = "hours since 1970-01-01"
 
@@ -49,7 +50,7 @@ def save_grib(ds, output, format="grib",  era5land=True):
         climtas.io.to_netcdf_throttled(ds, output)
         return
 
-    with tempfile.NamedTemporaryFile() as tmp1, tempfile.NamedTemporaryFile() as tmp2:
+    with tempfile.NamedTemporaryFile(delete=False) as tmp1, tempfile.NamedTemporaryFile(delete=False) as tmp2:
         logging.info("Creating intermediate file")
         # issue #11  skipping call to netcdf_throttled as it fails when using
         # era5land data
@@ -64,6 +65,7 @@ def save_grib(ds, output, format="grib",  era5land=True):
             # Decompress the data for CDO's benefit
             ds = xarray.open_dataset(tmp_compressed, chunks={"time": 1})
         # resume from here issue #11 temp fix
+        print("Whats happening...")
         encoding = {
             k: {"complevel": 0, "chunksizes": None, "_FillValue": -1e10}
             for k in ds.keys()
@@ -76,7 +78,7 @@ def save_grib(ds, output, format="grib",  era5land=True):
         logging.info("Converting to GRIB")
         # CDO is faster with uncompressed data
         subprocess.run(
-            ["cdo", "-f", "grb1", "-t", "ecmwf", "copy", tmp_uncompressed, output],
+            ["cdo", "-v", "-f", "grb1", "-t", "ecmwf", "copy", tmp_uncompressed, output],
             check=True,
         )
 
@@ -122,6 +124,8 @@ def era5grib_wrf(
     polar: bool = False,
 ):
     """
+    Legacy entry point preserved for compatibility
+
     Convert the NCI ERA5 archive data to GRIB format for use in WRF limited
     area modelling.
 
@@ -196,6 +200,8 @@ def era5grib_um(
     polar: bool = False,
 ):
     """
+    Legacy entry point preserved for compatibility
+
     Convert the NCI ERA5 archive data to GRIB format for use in UM limited area
     modelling.
 

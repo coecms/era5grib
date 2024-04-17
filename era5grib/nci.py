@@ -29,7 +29,7 @@ def paramdb():
     return intake.cat.nci.ecmwf.grib_parameters.read()
 
 
-def load_var(cat, chunks={"time": 12}, **kwargs):
+def load_var(cat, chunks={"time": 12,"latitude":-1,"longitude":-1}, **kwargs):
     """
     Load a single variable from intake
 
@@ -123,7 +123,7 @@ def read_era5_pressure(var, year, month):
         month=month,
         product_type="reanalysis",
         dataset="pressure-levels",
-        chunks={"time": 12, "level": 1},
+        chunks={"time": 12, "level": 1,"latitude":-1,"longitude":-1},
     )
     da.name = da.name + "_pl"
     return da
