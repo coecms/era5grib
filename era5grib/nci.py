@@ -81,7 +81,6 @@ def load_var(cat, chunks={"time": 12,"latitude":-1,"longitude":-1}, **kwargs):
 
     return da
 
-
 def read_era5_land(var, year, month):
     """
     Read land values (must be interpolated to era5 grid)
@@ -92,7 +91,6 @@ def read_era5_land(var, year, month):
     )  # , chunks={"time": 1, 'latitude': 500, 'longitude': 500},)
     da.name = da.name + "_land"
     return da
-
 
 def read_era5_surface(var, year, month):
     """
@@ -146,7 +144,7 @@ def regrid():
         landds,
         surfds,
         "bilinear",
-        filename=resource_filename(__name__, "nci_regrid_weights.nc"),
+        filename="/opt/conda/analysis3-23.01/lib/python3.9/site-packages/era5grib/nci_regrid_weights.nc",
         reuse_weights=True,
     )
 

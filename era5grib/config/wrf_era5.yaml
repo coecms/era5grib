@@ -1,0 +1,33 @@
+fields:
+  single-levels:
+    - 10u
+    - 10v
+    - 2t
+    - 2d
+    - sp
+    - skt
+    - rsn
+    - sd
+    - ci
+    - msl
+    - sst
+    - stl1
+    - stl2
+    - stl3
+    - stl4
+    - swvl1
+    - swvl2
+    - swvl3
+    - swvl4
+    - lsm
+    - z
+  pressure-levels:
+    - z
+    - u
+    - v
+    - t
+    - r
+catalogues:
+  - era5
+format: grib
+data_types: 32
