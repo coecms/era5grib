@@ -21,7 +21,6 @@ class UserWarningFilter(logging.Filter):
     def filter(self,record):
         ### Specifically reduce the level of some dask/xarray warnings coming out of 
         ### warnings.warn to INFO level
-        print()
         if record.levelno == logging.WARNING and 'UserWarning' in record.getMessage():
             for f in _filtered_warnings:
                 if f in record.getMessage():
@@ -60,7 +59,7 @@ class Era5GribLogger(logging.Logger):
             self.setLevel(ll)
         except ValueError:
             self.setLevel(logging.WARNING)
-            self.warn(f"Invalid logging level: {ll}")
+            self.warning(f"Invalid logging level: {ll}")
         self.uw_filter.set_log_level(self.getEffectiveLevel())
         ### Hook up the py.warnings logger too
         ### Test if someone has already called logging.captureWarnings(True)

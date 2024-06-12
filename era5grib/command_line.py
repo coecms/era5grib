@@ -85,7 +85,7 @@ def handle_args(
         if geo is not None:
             conf.set('domain',domain.get_domain(Path(geo),polar))
         else:
-            log.warn("Outputting the full domain, use --geo=geo_em.d01.nc to limit")
+            log.warning("Outputting the full domain, use --geo=geo_em.d01.nc to limit")
             conf.set('domain',domain.get_domain(None,polar))
 
     elif model == "um":
@@ -105,7 +105,7 @@ def handle_args(
         if target is not None:
             conf.set('domain',domain.get_domain(Path(target),polar))
         else:
-            log.warn("Outputting the full domain, use --target=qrparm.mask to limit")
+            log.warning("Outputting the full domain, use --target=qrparm.mask to limit")
             conf.set('domain',domain.get_domain(None,polar))
 
     elif model is None:
@@ -154,7 +154,7 @@ def handle_args(
         
         fmt = conf.get("format",format)
         if output is None:
-            log.warn(f"Output file name not specified, using out.{fmt}")
+            log.warning(f"Output file name not specified, using out.{fmt}")
             output = 'out.' + fmt
     try:
         writer=importlib.import_module(f"era5grib.output_drivers.{fmt}").write
