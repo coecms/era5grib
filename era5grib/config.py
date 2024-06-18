@@ -3,26 +3,27 @@ import yaml
 from typing import Any, Union
 from .logging import log, die
 import pandas
+from .conftree import ConfTree
 
 _known_configs = [ "um_era5", "um_era5land", "wrf_era5", "wrf_era5land" ]
 try:
     _p = Path(__file__)
 except NameError:
     die("Could not determine path to this file")
-    
+
 class Era5gribConfig():
     def __init__(self):
         ### First, read in global conf
-        out = self.read_yaml(_p.parent / 'config' / 'global.yaml' )
-        self.global_config = out
+        out = self.read_yaml(_p.parent / 'config' / 'defaults.yaml' )
+        self.default_config = ConfTree.from_dict(out)
+        self._combined_config = ConfTree.from_dict(out)
 
     def __contains__(self, item: Any) -> bool:
-        if getattr(self,'model_config',None):
-            return (item in self.model_config) or (item in self.global_config)
-        elif getattr(self,'global_config',None):
-            return item in self.global_config
-        else:
+        try:
+            _ = self._combined_config[item]
+        except KeyError:
             return False
+        return True
 
     def update(self,infile: Union[str,Path]):
 
@@ -37,21 +38,11 @@ class Era5gribConfig():
         if "includes" in out:
             self.update(out["includes"])
         if hasattr(self,'model_config'):
-            for k,v in out.items():
-                if k in self.model_config:
-                ### Recursive config gets prepended & duplicates removed if its a list
-                    if isinstance(v,list):
-                        self.model_config[k] = list(dict.fromkeys(v + self.model_config[k]))
-                ### merged if its a dict
-                    elif isinstance(v,dict):
-                        self.model_config[k] = self.model_config[k] | v
-                ### clobbered if its anything else (or not in the config at all)
-                    else:
-                        self.model_config[k] = v
-                else:
-                    self.model_config[k] = v
+            self.model_config.merge(out)
+            self._combined_config.merge(out)
         else:
-            self.model_config = out
+            self.model_config = ConfTree.from_dict(out)
+            self._combined_config.merge(out)
 
     @staticmethod
     def read_yaml(fn: Path) -> dict[str,Any]:
@@ -67,67 +58,56 @@ class Era5gribConfig():
 
     def get(self,key: str,default: Any = None) -> Any:
 
-        ### Recursive getter
-        keys = key.split('.')
-
-        ### key[0] gets special treatment
-        k=keys[0]
         ### Handle some special keys:
-        if k == "global_config":
-            return yaml.dump(self.global_config,default_flow_style=False)
-        elif k == "model_config":
+        if key == "default_config":
+            return yaml.dump(self.default_config.to_dict(),default_flow_style=False)
+        elif key == "model_config":
             try:
-                return yaml.dump(self.model_config,default_flow_style=False)
+                return yaml.dump(self.model_config.to_dict(),default_flow_style=False)
             except AttributeError as e:
                 raise AttributeError("Model configuration not initialised") from e
-        try:
-            out = self.model_config.get(k,None)
-        except AttributeError as e:
+
+        if not getattr(self,"model_config"):
             raise AttributeError("Model configuration not initialised") from e
-        if out is None:
-            out = self.global_config.get(k,None)
-        if out is None:
-            out = self.global_config['defaults'].get(k,None)
-        for k in keys[1:]:
-            if out is not None:
-                if isinstance(out,dict):
-                    out = out.get(k,None)
-                else:
-                    out = None
-        if out is not None:
-            return out
-        else:
-            return default
+        
+        return self._combined_config.get(key,default)
     
     def get_time_range(self) -> pandas.DatetimeIndex:
-        if "time_range" in self:
-            return self.get("time_range")
 
-        elif "start" in self:
-            start_time = self.get("start")
-            if "end" not in self:
-                die("Simulation time has not been correctly set")
-            end_time = self.get("end")
-            dr =  pandas.date_range(start_time,end_time,freq="h")
+        dr = self.get("time_range",None)
+        if dr is not None:
+            return dr
+
+        log.info("Calculating time range")
+        start_time = self.get("start",None)
+        end_time = self.get("end",None)
+        if start_time is None or end_time is None:
+            die("Simulation time has not been correctly set")
+        dr =  pandas.date_range(start_time,end_time,freq="h")
         self.set('time_range',dr)
         return dr
 
     def get_month_range(self) -> pandas.DatetimeIndex:
 
-        if "month_range" in self:
-            return self.get("month_range")
-
-        elif "start" in self:
-            start_time = pandas.offsets.MonthBegin().rollback(self.get('start').date())
-            if "end" not in self:
-                die("Simulation time has not been correctly set")
-            end_time = pandas.offsets.MonthEnd().rollforward(self.get('end').date())
-            mr = pandas.date_range(start_time,end_time,freq="ME")
+        mr = self.get("month_range")
+        if mr is not None:
+            return mr
+        
+        log.info("Calculating ERA5 month range")
+        start_time = self.get("start",None)
+        end_time = self.get("end",None)
+        if start_time is None or end_time is None:
+            die("Simulation time has not been correctly set")
+        start_time = pandas.offsets.MonthBegin().rollback(start_time.date())
+        end_time = pandas.offsets.MonthEnd().rollforward(end_time.date())
+        mr = pandas.date_range(start_time,end_time,freq="ME")
         self.set("month_range",mr)
         return mr
 
     def set(self,key: str, val: Any) -> Any:
+        
         log.debug(f"Setting model config {key}: {val}")
-        self.model_config[key]=val
+        self.model_config.set(key,val)
+        self._combined_config.set(key,val)
 
 conf = Era5gribConfig()

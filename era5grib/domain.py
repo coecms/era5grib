@@ -2,12 +2,10 @@ import numpy
 import xarray as xr
 import mule
 
-from collections import defaultdict
 from pathlib import Path
 from typing import Optional, Tuple
 
-from .logging import log
-from .config import conf
+from .logging import log, die
 
 def domain_from_ds(ds: xr.Dataset, polar:bool) -> Tuple[numpy.array,numpy.array]:
 
@@ -44,6 +42,8 @@ def get_domain(fn: Optional[Path], polar: bool) -> Tuple[slice,slice]:
     lats=numpy.array([-90,90])
     lons=numpy.array([0,359.75])
 
+    found=False
+
     if fn:
         try:
             ds = xr.open_dataset(fn,engine="netcdf4")
@@ -55,13 +55,14 @@ def get_domain(fn: Optional[Path], polar: bool) -> Tuple[slice,slice]:
             pass
         else:
             lats,lons=domain_from_ds(ds,polar)
+            found=True
 
-        try:
-            mf = mule.load_umfile(str(fn))
-        except ValueError:
-            log.error(f"Invalid input file for domain: {fn}")
-            exit(-1)
-        lats,lons=domain_from_um(mf,polar)
+        if not found:
+            try:
+                mf = mule.load_umfile(str(fn))
+            except ValueError:
+                die(f"Invalid input file for domain: {fn}")
+            lats,lons=domain_from_um(mf,polar)
 
         log.info(f"Latitudes: Target ({lats.min():.2f}:{lats.max():.2f})")
         log.info(f"Longitudes: Target ({lons.min():.2f}:{lons.max():.2f})")

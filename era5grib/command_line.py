@@ -30,8 +30,8 @@ def handle_args(
         debug: Optional[bool] = False,
     ) -> None:
     
-    ### Cmdline > local conf > global conf
-    conf_path = Path(__file__).parent.parent / 'config'
+    ### Cmdline > local conf > default conf
+    conf_path = Path(__file__).parent / 'config'
 
     ###Convert times to what we need first
     if time:
@@ -79,9 +79,6 @@ def handle_args(
         if start is None:
             die("Please provide either 'start' or 'namelist' if 'wrf' is selected as a model")
 
-        if end is None:
-            end = start
-
         if geo is not None:
             conf.set('domain',domain.get_domain(Path(geo),polar))
         else:
@@ -97,11 +94,14 @@ def handle_args(
 
         if debug:
             conf.set('log_level',DEBUG)
-        log.start(conf)
+        log.start(conf.get('log_level'))
 
         if output is None:
             output = f"um.era5.{time.strftime('%Y%m%dT%H%M')}.grib"
         
+        if time:
+            start = time
+
         if target is not None:
             conf.set('domain',domain.get_domain(Path(target),polar))
         else:
@@ -112,7 +112,6 @@ def handle_args(
         if file is None:
             die("If 'um' or 'wrf' is not specified, a conf file must be provided")
         conf.update(file)
-        ### Does this configuration have an include key?
 
         if debug:
             conf.set('log_level',DEBUG)
@@ -146,16 +145,16 @@ def handle_args(
                     except:
                         pass
 
-        if start is None:
-            die("Either 'time', 'start' or 'namelist' must be provided in order to construct time bounds")
+    if start is None:
+        die("Either 'time', 'start' or 'namelist' must be provided in order to construct time bounds")
 
-        if end is None:
-            end = start
+    if end is None:
+        end = start
         
-        fmt = conf.get("format",format)
-        if output is None:
-            log.warning(f"Output file name not specified, using out.{fmt}")
-            output = 'out.' + fmt
+    fmt = conf.get("format",format)
+    if output is None:
+        log.warning(f"Output file name not specified, using out.{fmt}")
+        output = 'out.' + fmt
     try:
         writer=importlib.import_module(f"era5grib.output_drivers.{fmt}").write
     except ModuleNotFoundError:
@@ -175,7 +174,7 @@ def handle_args(
     elif conf.get("polar",None) is None:
         conf.set("polar",False)
 
-    log.info(conf.get("global_config"))
+    log.info(conf.get("default_config"))
     log.info(conf.get("model_config"))
 
     if not conf.get("fields"):
