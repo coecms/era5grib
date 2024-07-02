@@ -1,0 +1,27 @@
+fields:
+  single-levels:
+    - skt
+    - sp
+    - ci
+    - sd
+    - stl1
+    - stl2
+    - stl3
+    - stl4
+    - swvl1
+    - swvl2
+    - swvl3
+    - swvl4
+    - lsm
+    - z
+  pressure-levels:
+    - u
+    - v
+    - t
+    - q
+catalogues:
+  - era5_land
+  - era5
+regrid: era5
+regrid_options: weight_file
+format: grib

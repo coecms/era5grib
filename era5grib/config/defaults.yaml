@@ -1,0 +1,64 @@
+land-mask:
+  era5: lsm
+land_only:
+  - stl1
+  - stl2
+  - stl3
+  - stl4
+  - swvl1
+  - swvl2
+  - swvl3
+  - swvl4
+ocean_only:
+  - ci
+  - msl
+  - sst
+static:
+  single-levels:
+    - lsm
+    - z
+equivalent_vars:
+  10u: u10
+  10v: v10
+regridding:
+  ref_field: 2t
+  ref_date: '20010101'
+dataset_tags:
+  single-levels: surf
+  pressure-levels: pl
+catalogue_paths: 
+  - /g/data/hh5/public/apps/nci-intake-catalogue/catalogue_new.yaml
+catalogues:
+  - era5_land
+  - era5
+metadata_catalogue: ecmwf.grib_parameters
+metadata_mapping:
+  table: table2Version
+  code: indicatorOfParameter
+  standard_name: cfName
+  ecmwf_name: name
+  ecmwf_shortname: shortName
+  units: units
+catalogue_flags:
+  era5_land: 
+    realm: land_only
+    product_type: reanalysis
+    chunks:
+      time: 1
+      level: 37
+      latitude: -1
+      longitude: -1
+  era5:
+    product_type: reanalysis
+    sub_collection_pref: era5-1
+    chunks:
+      time: 12
+      level: 5
+      latitude: -1
+      longitude: -1
+format: grib
+regrid: era5
+regrid_options: weight_file
+polar: False
+log_level: warning
+data_types: 32

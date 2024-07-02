@@ -14,9 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+__all__ = [
+    "main",
+    "era5grib",
+    "data_handling",
+    "config",
+    "domain",
+    "logging",
+    "parallel",
+    "command_line"
+    ]
+
 from .era5grib import *
 
-from ._version import get_versions
-
-__version__ = get_versions()["version"]
-del get_versions
+from ._version import __version__

@@ -1,0 +1,12 @@
+includes: um_era5land
+custom_fields:
+  skt: /scratch/v46/cc6171/3June_1980-2019_skinclimatology.nc
+custom_field_flags:
+  skt: ocean_only
+catalogue_flags:
+  era5:
+    chunks:
+      time: 12
+      level: 1
+      latitude: -1
+      longitude: -1
