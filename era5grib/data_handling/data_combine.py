@@ -1,4 +1,3 @@
-import importlib.resources
 import xarray as xr
 import pandas
 import xesmf
@@ -173,9 +172,6 @@ def handle_regridding(fields: Dict[Tuple[str,str],Era5field]) -> None:
                 field.set_regridder(realm,regridders[da.attrs["source"]])
             field.regrid()
 
-    print(regridders)
-    print(fields[('u', 'pressure-levels')].data_arrays['global'].level.attrs)
-
 def combine(fields: Dict[Timestamp,Dict[Tuple[str,str],Era5field]]) -> xr.Dataset:
     """
 This function takes a list of Dict of Era5field objects. Each dict kv
@@ -220,21 +216,6 @@ Therefore, custom data only needs to be dealt with on the first month
         field.merge(land_mask_da,ds_type)
 
     ds = xr.merge([v.get_merged_field() for v in fields_to_merge.values()])
-
-    data_types = conf.get("data_types")
-    if data_types is not None:
-        if data_types == 32:
-            for v in ds.values():
-                if v.dtype == "float64":
-                    v.encoding["dtype"] = "float32"
-                if v.dtype == "int64":
-                    v.encoding["dtype"] = "int32"
-        if data_types == 64:
-            for v in ds.values():
-                if v.dtype == "float32":
-                    v.encoding["dtype"] = "float64"
-                if v.dtype == "int32":
-                    v.encoding["dtype"] = "int64"
 
     ### Add grib metadata here
     grib_params = Paramdb()

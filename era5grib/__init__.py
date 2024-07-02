@@ -14,7 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#from . import main,config
-from . import *
+__all__ = [
+    "main",
+    "era5grib",
+    "data_handling",
+    "config",
+    "domain",
+    "logging",
+    "parallel",
+    "command_line"
+    ]
+
+from .era5grib import *
 
 from ._version import __version__

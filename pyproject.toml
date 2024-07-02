@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "era5grib"
+dynamic = ["version"]
+description = "Convert ERA5 data on NCI to WRF/UM input formatted GRIB data"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  {name = "Dale Roberts", email = "dsroberts@unimelb.edu.au"},
+  {name = "Scott Wales", email = "scott.wales@bom.gov.au"},
+]
+
+dependencies = [
+  "xarray",
+  "pandas",
+  "intake",
+  "intake_esm",
+  "xesmf",
+  "numpy",
+  "mule",
+  "f90nml",
+  "cdo",
+  "distributed"
+]
+
+[tool.setuptools_scm]
+version_file = "era5grib/_version.py"
+
+[project.scripts]
+era5grib = "era5grib.main:main"
+
+[tool.setuptools.packages.find]
+exclude = ["examples", "test"]
+

@@ -110,4 +110,12 @@ class Era5gribConfig():
         self.model_config.set(key,val)
         self._combined_config.set(key,val)
 
+    def reset(self):
+        if hasattr(self,"model_config"):
+            del(self.model_config)
+        if hasattr(self,"_combined_config"):
+            del(self._combined_config)
+        ### Deep-copy original config
+        self._combined_config = ConfTree.from_dict(self.default_config.to_dict())
+
 conf = Era5gribConfig()

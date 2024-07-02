@@ -46,22 +46,27 @@ def get_domain(fn: Optional[Path], polar: bool) -> Tuple[slice,slice]:
 
     if fn:
         try:
+            log.info("Attempting to open domain as netCDF file with Xarray")
             ds = xr.open_dataset(fn,engine="netcdf4")
         except FileNotFoundError:
             log.error(f"Input domain data file not found")
         except AttributeError:
             log.error(f"Input dataset is not a valid geogrid file")
         except OSError:
+            log.info("Not Found")
             pass
         else:
+            log.info("Found")
             lats,lons=domain_from_ds(ds,polar)
             found=True
 
         if not found:
             try:
+                log.info("Attempting to open domain as UM file with mule")
                 mf = mule.load_umfile(str(fn))
             except ValueError:
                 die(f"Invalid input file for domain: {fn}")
+            log.info("Found")
             lats,lons=domain_from_um(mf,polar)
 
         log.info(f"Latitudes: Target ({lats.min():.2f}:{lats.max():.2f})")

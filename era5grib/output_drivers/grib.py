@@ -14,7 +14,7 @@ def write(ds: xr.Dataset):
     }
 
     ### Make a temp netcdf file
-    with tempfile.NamedTemporaryFile(dir=os.environ.get('TMPDIR','/tmp'),delete=False) as f:
+    with tempfile.NamedTemporaryFile(dir=os.environ.get('TMPDIR','/tmp')) as f:
         tmp_name = f.name
         ds.to_netcdf(tmp_name,encoding=encoding)
         subprocess.run(["cdo", "-v", "-f", "grb1", "-t", "ecmwf", "copy", tmp_name, conf.get("output")],check=True)

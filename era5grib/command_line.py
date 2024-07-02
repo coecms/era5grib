@@ -109,6 +109,7 @@ def handle_args(
             conf.set('domain',domain.get_domain(None,polar))
 
     elif model is None:
+
         if file is None:
             die("If 'um' or 'wrf' is not specified, a conf file must be provided")
         conf.update(file)
@@ -116,6 +117,7 @@ def handle_args(
         if debug:
             conf.set('log_level',DEBUG)
         log.start(conf.get("log_level"))
+
         if target is not None:
             conf.set('domain',domain.get_domain(Path(target),polar))
         elif geo is not None:
@@ -216,7 +218,5 @@ def parse_args(in_args: List[str]) -> None:
     parser.add_argument("--debug", help="Debug output", action="store_true")
 
     ns = parser.parse_args(in_args)
-
-    print(ns)
 
     handle_args(**vars(ns))

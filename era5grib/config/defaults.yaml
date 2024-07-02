@@ -61,3 +61,4 @@ regrid: era5
 regrid_options: weight_file
 polar: False
 log_level: warning
+data_types: 32

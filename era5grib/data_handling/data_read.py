@@ -4,16 +4,38 @@ import intake_esm
 
 from pandas import Timestamp
 from .era5field import Era5field
+from .xarray_legacy_read import cat_to_dataset_dict
 from ..config import conf
 from ..logging import log, die
 
 from collections import OrderedDict
-from typing import Dict,Tuple,Optional
+from typing import Dict,Tuple,Optional,List
 
 _lat_names = ["latitude", "lat","LAT","LATITUDE", "Lat","Latitude" ]
 _lon_names = ["longitude","lon","LON","LONGITUDE","Lon","Longitude"]
 
-def get_catalogues() -> list[intake_esm.core.esm_datastore]:
+def find_datasets(cat: intake_esm.core.esm_datastore, datasets: List[str], name: str) -> List[intake_esm.core.esm_datastore]:
+
+    sub_cats=[]
+
+    if "dataset" in cat.df:
+        for intake_ds in datasets:
+            log.debug(f"Searching for dataset {intake_ds}")
+            sub_cat = cat.search(dataset=intake_ds)
+            if len(sub_cat.df) > 0:
+                ### Need to keep hold of the names
+                sub_cat.name = name
+                log.debug(f"Appending catalogue: {sub_cat}")
+                sub_cats.append(sub_cat)
+            else:
+                log.debug("Not Found")
+    else:
+        ### Need to keep hold of the names
+        cat.name = name
+        sub_cats.append(cat)
+    return sub_cats
+
+def get_catalogues() -> List[intake_esm.core.esm_datastore]:
 
     datasets = [ k for k in conf.get("fields").keys() ]
     cats = []
@@ -37,47 +59,16 @@ def get_catalogues() -> list[intake_esm.core.esm_datastore]:
                 out.name = n
             sub_coll_pref = conf.get(f'catalogue_flags.{out.name}.sub_collection_pref')
             log.debug(f"sub_coll_pref: {sub_coll_pref}")
-            if sub_coll_pref:
+            if sub_coll_pref is not None:
                 log.info(f"Attempting to find preferred subcollection: {sub_coll_pref}")
                 sub_cat = out.search(sub_collection=sub_coll_pref)
                 if len(sub_cat.df) > 0:
                     log.debug("Found")
-                    if "dataset" in sub_cat.df:
-                        log.info(f"Found 'dataset' key in preferred subcollection: {sub_coll_pref}")
-                        for intake_ds in datasets:
-                            log.debug(f"Searching for dataset {intake_ds}")
-                            sub_sub_cat = sub_cat.search(dataset=intake_ds)
-                            if len(sub_sub_cat.df) > 0:
-                                
-                                ### Need to keep hold of the names
-                                sub_sub_cat.name = sub_coll_pref
-                                log.debug(f"Appending catalogue: {sub_sub_cat}")
-                                cats.append(sub_sub_cat)
-                            else:
-                                log.debug("Not Found")
-                    else:
-                        ### Need to keep hold of the names
-                        sub_cat.name = sub_coll_pref
-                        log.debug(f"Appending catalogue: {sub_cat}")
-                        cats.append(sub_cat)
-                else:
-                    log.debug("Not Found")
+                    sub_sub_cat = find_datasets(sub_cat,datasets,sub_coll_pref)
+                    cats.extend(sub_sub_cat)
             if len(out.df) > 0:
-                if "dataset" in out.df:
-                    log.info(f"Found 'dataset' key in catalogue: {cat}")
-                    for intake_ds in datasets:
-                        log.debug(f"Searching for dataset {intake_ds}")
-                        sub_cat = out.search(dataset=intake_ds)
-                        if (len(sub_cat.df)) > 0:
-                            log.debug("Found")
-                            sub_cat.name = out.name
-                            log.debug(f"Appending catalogue: {sub_cat}")
-                            cats.append(sub_cat)
-                        else:
-                            log.debug("Not Found")
-                else:
-                    log.debug(f"Appending catalogue: {out}")
-                    cats.append(out)
+                sub_cat = find_datasets(out,datasets,out.name)
+                cats.extend(sub_cat)
     if not cats:
         die("No valid catalogues specified")
     
@@ -274,7 +265,12 @@ def get_data(cats: list[intake_esm.core.esm_datastore],t: Timestamp) -> Dict[Tup
         file_var_map=dict(zip(result.df['file_variable'],result.df['parameter']))
         chunks = conf.get(f'catalogue_flags.{cat.name}.chunks',"auto")
         log.debug("Creating dataset dict")
-        d = result.to_dataset_dict(xarray_open_kwargs={"chunks":chunks})
+        if conf.get("data_types",32) == 32:
+            ### Force 32-bit right from the start
+            d = cat_to_dataset_dict(result,chunks)
+        else:
+            ### Don't care what it ends up as
+            d = result.to_dataset_dict(xarray_open_kwargs={"chunks":chunks}, progressbar=False)
         for ds in d.values():
             for da in ds:
                 log.debug(f"Handling {da}")
@@ -300,7 +296,6 @@ def get_data(cats: list[intake_esm.core.esm_datastore],t: Timestamp) -> Dict[Tup
                         if i == field_name:
                             field.add_dataarray(out_da,realm)
                             break
-
     return fields
 
 def load_fields(t: Timestamp) -> Dict[Tuple[str,str],Era5field]:

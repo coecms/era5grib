@@ -1,7 +1,7 @@
 import logging
 import warnings
 import sys
-from typing import NoReturn, Union, Optional
+from typing import NoReturn, Union, Optional, List
 
 _filtered_warnings=["The specified chunks separate",
                     "Sending large graph of size",
@@ -36,9 +36,11 @@ class Era5GribLogger(logging.Logger):
         super().__init__('Era5grib')
         self.started = False
         self.uw_filter = UserWarningFilter()
-        self.stream_handler = logging.StreamHandler(sys.stderr)
+        self.stream_handler = logging.StreamHandler(sys.stdout)
         self.stream_handler.addFilter(self.uw_filter)
         self.stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        ### Also need to add filter to logger itself - New for analysis3-24.04
+        self.addFilter(self.uw_filter)
 
     def start(self,level: Optional[Union[str,int]]):
 
@@ -72,16 +74,23 @@ class Era5GribLogger(logging.Logger):
         ### Other loggers we want to add our stream handler too
         for logger_name in _loggers_to_override:
                 logging.getLogger(logger_name).addHandler(self.stream_handler)
+                ### Also need to add filter to logger itself - New for analysis3-24.04
+                logging.getLogger(logger_name).addFilter(self.uw_filter)
         self.started=True
         return
     
     def __del__(self):
         ### Clean up in case we've been called from some other __main__
-        if not self._captured_warnings:
-            warnings_logger = logging.getLogger("py.warnings")
-            warnings_logger.removeHandler(self.stream_handler)
-            logging.captureWarnings(False)
+        if hasattr(self,'_captured_warnings'):
+            if not self._captured_warnings:
+                warnings_logger = logging.getLogger("py.warnings")
+                warnings_logger.removeHandler(self.stream_handler)
+                logging.captureWarnings(False)
+        for logger_name in _loggers_to_override:
+            logging.getLogger(logger_name).removeHandler(self.stream_handler)
 
+    def get_overridden_loggers(self) -> List[str]:
+        return [ self.name, "py.warnings" ] + _loggers_to_override
 
 log = Era5GribLogger()
 
