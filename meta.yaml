@@ -1,0 +1,39 @@
+package:
+    name: era5grib
+    version: {{ GIT_DESCRIBE_TAG }}
+
+source:
+    path: .
+
+
+build:
+    script: "{{ PYTHON }} -m pip install . --no-deps"
+    noarch: python
+    number: {{ GIT_DESCRIBE_NUMBER }}
+
+
+requirements:
+    host:
+        - python
+        - pip
+    run:
+        - python
+        - pandas
+        - xarray
+        - mule
+        - numpy
+        - f90nml
+        - cdo
+        - intake
+        - intake-esm
+        - xesmf
+
+test:
+    requires:
+        - pytest
+    imports:
+        - era5grib
+    files:
+        - test
+    commands:
+        - py.test
