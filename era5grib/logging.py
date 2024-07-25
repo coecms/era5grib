@@ -7,8 +7,7 @@ _filtered_warnings=["The specified chunks separate",
                     "Sending large graph of size",
                     "Ancillary files do not define the UM version number",
                     ]
-_loggers_to_override=["xarray",
-                      ]
+_loggers_to_override=[]
 
 class UserWarningFilter(logging.Filter):
     def __init__(self,name=''):
@@ -37,9 +36,7 @@ class Era5GribLogger(logging.Logger):
         self.started = False
         self.uw_filter = UserWarningFilter()
         self.stream_handler = logging.StreamHandler(sys.stdout)
-        self.stream_handler.addFilter(self.uw_filter)
         self.stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-        ### Also need to add filter to logger itself - New for analysis3-24.04
         self.addFilter(self.uw_filter)
 
     def start(self,level: Optional[Union[str,int]]):
@@ -70,12 +67,15 @@ class Era5GribLogger(logging.Logger):
         if not self._captured_warnings:
             logging.captureWarnings(True)
             warnings_logger = logging.getLogger("py.warnings")
+            warnings_logger.handlers.clear()
             warnings_logger.addHandler(self.stream_handler)
+            warnings_logger.addFilter(self.uw_filter)
+            warnings_logger.propagate=False
         ### Other loggers we want to add our stream handler too
         for logger_name in _loggers_to_override:
                 logging.getLogger(logger_name).addHandler(self.stream_handler)
-                ### Also need to add filter to logger itself - New for analysis3-24.04
                 logging.getLogger(logger_name).addFilter(self.uw_filter)
+                logging.getLogger(logger_name).propagate=False
         self.started=True
         return
     
@@ -85,9 +85,13 @@ class Era5GribLogger(logging.Logger):
             if not self._captured_warnings:
                 warnings_logger = logging.getLogger("py.warnings")
                 warnings_logger.removeHandler(self.stream_handler)
+                warnings_logger.removeFilter(self.uw_filter)
+                warnings_logger.propagate=True
                 logging.captureWarnings(False)
         for logger_name in _loggers_to_override:
             logging.getLogger(logger_name).removeHandler(self.stream_handler)
+            logging.getLogger(logger_name).removeFilter(self.uw_filter)
+            logging.getLogger(logger_name).propagate=True
 
     def get_overridden_loggers(self) -> List[str]:
         return [ self.name, "py.warnings" ] + _loggers_to_override
