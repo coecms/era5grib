@@ -1,15 +1,18 @@
+{% set name = "era5grib" %}
+{% set version = "2.0.1" %}
+
 package:
-    name: era5grib
-    version: {{ GIT_DESCRIBE_TAG }}
+    name: {{ name|lower }}
+    version: {{ version }}
 
 source:
-    path: .
+    url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/era5grib-{{ version }}.tar.gz
 
 
 build:
     script: "{{ PYTHON }} -m pip install . --no-deps"
     noarch: python
-    number: {{ GIT_DESCRIBE_NUMBER }}
+    number: 0
 
 
 requirements:

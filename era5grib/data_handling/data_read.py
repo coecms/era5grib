@@ -8,8 +8,8 @@ from .xarray_legacy_read import cat_to_dataset_dict
 from ..config import conf
 from ..logging import log, die
 
-from collections import OrderedDict
-from typing import Dict,Tuple,Optional,List
+from collections import OrderedDict, namedtuple
+from typing import Dict,Tuple,Optional,List,NamedTuple,Union
 
 _lat_names = ["latitude", "lat","LAT","LATITUDE", "Lat","Latitude" ]
 _lon_names = ["longitude","lon","LON","LONGITUDE","Lon","Longitude"]
@@ -35,13 +35,22 @@ def find_datasets(cat: intake_esm.core.esm_datastore, datasets: List[str], name:
         sub_cats.append(cat)
     return sub_cats
 
-def get_catalogues() -> List[intake_esm.core.esm_datastore]:
+def get_catalogues() -> List[Union[intake_esm.core.esm_datastore,NamedTuple]]:
 
+    custom_field_cat_key = conf.get("custom_field_catalogue_key")
     datasets = [ k for k in conf.get("fields").keys() ]
     cats = []
     for cat_path in conf.get('catalogue_paths'):
         log.info(f"Trying catalogue path: {cat_path}")
         for cat in conf.get('catalogues'):
+            if cat == custom_field_cat_key:
+                ### We found the special (fake) "custom field" catalogue, create an empty
+                ### object that has a 'name' attribute, we'll need to query that later
+                out = namedtuple("FakeCatalogue","name")
+                out.name = custom_field_cat_key
+                cats.append(out)
+                log.debug(f"Skipping custom field {custom_field_cat_key} placeholder")
+                continue
             log.debug(f"Looking for {cat} in {cat_path}")
             c = intake.open_catalog(cat_path)
             try:
@@ -138,7 +147,7 @@ def handle_custom_field(field_name: str, file_name: str) -> xr.DataArray:
     ### Check times
     if "time" in da.coords:
         log.debug("Dataset has time coord")
-        if len(da.coords["time"]) > 1:
+        if da.time.size > 1:
             log.debug("File has more than one time point")
             tr = conf.get_time_range()
             try:
@@ -149,8 +158,11 @@ def handle_custom_field(field_name: str, file_name: str) -> xr.DataArray:
                     time steps specified by the input arguments must exist in that file
                     """)
         else:
+            ### Awkwardly handle scalar and length 1 coordinates
             log.debug("Dataset has one time point")
-            da = da.isel(time=0).drop_vars("time")
+            if "time" in da.dims:
+                da = da.isel(time=0)
+            da = da.drop_vars("time")
     
     ### Check that what's left is sensible
     if "time" in da.coords:
@@ -209,12 +221,14 @@ def remaining_list(fields: Dict[Tuple[str,str],Era5field],dataset=None) -> list[
     log.debug(f"Fields remaining: {field_list}")
     return field_list
 
-def get_data(cats: list[intake_esm.core.esm_datastore],t: Timestamp) -> Dict[Tuple[str,str],Era5field]:
+def get_data(cats: list[Union[intake_esm.core.esm_datastore,NamedTuple]],t: Timestamp) -> Dict[Tuple[str,str],Era5field]:
 
     datasets = [ k for k in conf.get("fields").keys() ]
     inverse_equivs = { v:k for k,v in ( conf.get("equivalent_vars",{}) ).items() }
     lat_buffer_range, lon_buffer_range = conf.get("domain_with_buffer")
     static_fields = conf.get('static',{})
+    custom_field_cat_key = conf.get("custom_field_catalogue_key")
+    cat_names = [ i.name for i in cats ]
 
     ### CDO seems to want fields in a specific order
     ###   - single level
@@ -237,65 +251,71 @@ def get_data(cats: list[intake_esm.core.esm_datastore],t: Timestamp) -> Dict[Tup
             log.debug(f"Initialise static {field_name} {ds_type}")
             fields[(field_name,ds_type)] = Era5field(field_name)
 
-
     if "custom_fields" in conf:
-        log.info("Getting custom fields")
-        for field, fn in conf.get('custom_fields').items():
-            ### Check if we should remove the field from the remaining list
-            ### Only load the field on the first timestep:
-            da = handle_custom_field(field,fn)
-            realm = conf.get(f"custom_field_flags.{field}","global")
-            log.debug(f"{field} from {fn} defined on {realm}")
-            if realm == "subdomain":
-                raise(NotImplementedError("TODO"))
-            ### Can only handle single-level custom fields
-            fields[(field,'single-levels')].add_dataarray(da,realm)
+        if custom_field_cat_key not in cat_names:
+            log.info("Custom fields found, but no order specified, inserting at top")
+            ### We have custom fields, but the user has not told
+            ### us where they go, so they'll be processed first
+            fakecat = namedtuple("FakeCatalogue","name")
+            fakecat.name = custom_field_cat_key
+            cats.insert(0,fakecat)
 
     for cat in cats:
         log.info(f"Searching for remaining fields in {cat}")
-        if "dataset" in cat.df:
-            dataset = cat.df["dataset"].unique()[0]
-            result = cat.search(parameter=remaining_list(fields,dataset),year=t.year,month=t.month)
+        if cat.name == custom_field_cat_key:
+            log.info("Handling custom fields")
+            for field, fn in conf.get('custom_fields').items():
+                da = handle_custom_field(field,fn)
+                realm = conf.get(f"custom_field_flags.{field}","global")
+                log.debug(f"{field} from {fn} defined on {realm}")
+                if realm == "subdomain":
+                    raise(NotImplementedError("TODO"))
+                ### Can only handle single-level custom fields
+                fields[(field,'single-levels')].add_dataarray(da,realm)
         else:
-            result = cat.search(parameter=remaining_list(fields),year=t.year,month=t.month)
-        if len(result.df) == 0:
-            log.debug("None Found")
-            continue
-        log.debug(f"Found: {result.df['file_variable']}")
-        file_var_map=dict(zip(result.df['file_variable'],result.df['parameter']))
-        chunks = conf.get(f'catalogue_flags.{cat.name}.chunks',"auto")
-        log.debug("Creating dataset dict")
-        if conf.get("data_types",32) == 32:
-            ### Force 32-bit right from the start
-            d = cat_to_dataset_dict(result,chunks)
-        else:
-            ### Don't care what it ends up as
-            d = result.to_dataset_dict(xarray_open_kwargs={"chunks":chunks}, progressbar=False)
-        for ds in d.values():
-            for da in ds:
-                log.debug(f"Handling {da}")
-                ### Dataset realm
-                realm = conf.get(f'catalogue_flags.{cat.name}.realm',"global")
-                field_name= inverse_equivs.get(file_var_map[da],file_var_map[da])
-                if ( conf.get("regrid_options") == "weight_file" ):
-                    log.debug("Not Trimming to buffered domain")
-                    out_da = ds[da]
-                else:
-                    log.debug("Trimming to buffered domain")
-                    out_da = ds[da].sel(latitude=lat_buffer_range,longitude=lon_buffer_range)
-                out_da.attrs['source'] = cat.name
-                ### Field realm overrides dataset realm
-                if field_name in conf.get("ocean_only") or []:
-                    realm = "ocean_only"
-                elif field_name in conf.get("land_only") or []:
-                    realm = "land_only"
-                if "dataset" in cat.df:
-                    fields[(field_name,dataset)].add_dataarray(out_da,realm)
-                else:
-                    for (i,_),field in fields.items():
-                        if i == field_name:
-                            field.add_dataarray(out_da,realm)
-                            break
+            if "dataset" in cat.df:
+                dataset = cat.df["dataset"].unique()[0]
+                result = cat.search(parameter=remaining_list(fields,dataset),year=t.year,month=t.month)
+            else:
+                result = cat.search(parameter=remaining_list(fields),year=t.year,month=t.month)
+            if len(result.df) == 0:
+                log.debug("None Found")
+                continue
+            log.debug(f"Found: {result.df['file_variable']}")
+            file_var_map=dict(zip(result.df['file_variable'],result.df['parameter']))
+            chunks = conf.get(f'catalogue_flags.{cat.name}.chunks',"auto")
+            log.debug("Creating dataset dict")
+            if conf.get("data_types",32) == 32:
+                ### Force 32-bit right from the start
+                d = cat_to_dataset_dict(result,chunks)
+            else:
+                ### Don't care what it ends up as
+                d = result.to_dataset_dict(xarray_open_kwargs={"chunks":chunks}, progressbar=False)
+            for ds in d.values():
+                for da in ds:
+                    log.debug(f"Handling {da}")
+                    ### Dataset realm
+                    realm = conf.get(f'catalogue_flags.{cat.name}.realm',"global")
+                    field_name= inverse_equivs.get(file_var_map[da],file_var_map[da])
+                    if ( conf.get("regrid_options") == "weight_file" ):
+                        log.debug("Not Trimming to buffered domain")
+                        out_da = ds[da]
+                    else:
+                        log.debug("Trimming to buffered domain")
+                        out_da = ds[da].sel(latitude=lat_buffer_range,longitude=lon_buffer_range)
+                    out_da.attrs['source'] = cat.name
+                    ### Field realm overrides dataset realm
+                    if field_name in conf.get("ocean_only") or []:
+                        realm = "ocean_only"
+                    elif field_name in conf.get("land_only") or []:
+                        realm = "land_only"
+                    if "dataset" in cat.df:
+                        fields[(field_name,dataset)].add_dataarray(out_da,realm)
+                    else:
+                        for (i,_),field in fields.items():
+                            if i == field_name:
+                                field.add_dataarray(out_da,realm)
+                                break
     return fields
 
 def load_fields(t: Timestamp) -> Dict[Tuple[str,str],Era5field]:

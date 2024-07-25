@@ -62,3 +62,4 @@ regrid_options: weight_file
 polar: False
 log_level: warning
 data_types: 32
+custom_field_catalogue_key: custom_fields
