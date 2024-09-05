@@ -19,6 +19,7 @@ from .main import main
 
 from pandas import Timestamp
 
+
 def era5grib_wrf(
     start=None,
     end=None,
@@ -44,22 +45,36 @@ def era5grib_wrf(
     output file as 'geo'.
     """
     if era5land:
-        conf_file = str(Path(__file__).parent.parent / 'config' / 'wrf_era5land.yaml')
+        conf_file = str(Path(__file__).parent.parent / "config" / "wrf_era5land.yaml")
     else:
-        conf_file = str(Path(__file__).parent.parent / 'config' / 'wrf_era5.yaml')
+        conf_file = str(Path(__file__).parent.parent / "config" / "wrf_era5.yaml")
 
     if polar:
-        polar_flag="--polar"
+        polar_flag = "--polar"
     else:
-        polar_flag="--no-polar"
+        polar_flag = "--no-polar"
 
-    if isinstance(time,Timestamp):
-        time = time.strftime("%Y%m%d%H%M")
+    if isinstance(start, Timestamp):
+        start = start.strftime("%Y%m%d%H%M")
 
-    if isinstance(output,Path):
+    if isinstance(end, Timestamp):
+        end = end.strftime("%Y%m%d%H%M")
+
+    if isinstance(output, Path):
         output = str(output)
 
-    main(["--file",conf_file,"--start",start,"--end",end,"--output",output,"--namelist",namelist,"--geo",geo,"--format",format,polar_flag])
+    main(
+        [
+            "--file", conf_file,
+            "--start", start,
+            "--end", end,
+            "--output", output,
+            "--namelist", namelist,
+            "--geo", geo,
+            "--format", format,
+            polar_flag,
+        ]
+    )
 
 
 def era5grib_um(
@@ -85,20 +100,33 @@ def era5grib_um(
     """
 
     if era5land:
-        conf_file = str(Path(__file__).parent / 'config' / 'um_era5land.yaml')
+        conf_file = str(Path(__file__).parent / "config" / "um_era5land.yaml")
     else:
-        conf_file = str(Path(__file__).parent / 'config' / 'um_era5.yaml')
+        conf_file = str(Path(__file__).parent / "config" / "um_era5.yaml")
 
     if polar:
-        polar_flag="--polar"
+        polar_flag = "--polar"
     else:
-        polar_flag="--no-polar"
+        polar_flag = "--no-polar"
 
-    if isinstance(time,Timestamp):
+    if isinstance(time, Timestamp):
         time = time.strftime("%Y%m%d%H%M")
 
-    if isinstance(output,Path):
+    if isinstance(output, Path):
         output = str(output)
 
-    main(["--file",conf_file,"--time",time,"--output",output,"--target",target,"--format",format,polar_flag])
-
+    main(
+        [
+            "--file",
+            conf_file,
+            "--time",
+            time,
+            "--output",
+            output,
+            "--target",
+            target,
+            "--format",
+            format,
+            polar_flag,
+        ]
+    )

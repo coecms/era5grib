@@ -7,15 +7,16 @@ from typing import Optional, Tuple
 
 from .logging import log, die
 
-def domain_from_ds(ds: xr.Dataset, polar:bool) -> Tuple[numpy.array,numpy.array]:
 
+def domain_from_ds(ds: xr.Dataset, polar: bool) -> Tuple[numpy.array, numpy.array]:
     if not polar:
         lons = ds.XLONG_M.where(ds.XLONG_M > 0, ds.XLONG_M + 360).values
     else:
         lons = numpy.array([0, 359.75])
     return ds.XLAT_M.values, lons
 
-def domain_from_um(mf, polar:bool) -> Tuple[numpy.array,numpy.array]:
+
+def domain_from_um(mf, polar: bool) -> Tuple[numpy.array, numpy.array]:
     ny = mf.integer_constants.num_rows
     nx = mf.integer_constants.num_cols
 
@@ -31,34 +32,35 @@ def domain_from_um(mf, polar:bool) -> Tuple[numpy.array,numpy.array]:
     else:
         lon = numpy.array([0, 359.75])
 
-    return lat,lon
+    return lat, lon
 
-def get_domain(fn: Optional[Path], polar: bool) -> Tuple[slice,slice]:
+
+def get_domain(fn: Optional[Path], polar: bool) -> Tuple[slice, slice]:
     """
     Return the model domain from a given file path. Accepts either
     WRF geo_em files or UM.
     """
 
-    lats=numpy.array([-90,90])
-    lons=numpy.array([0,359.75])
+    lats = numpy.array([-90, 90])
+    lons = numpy.array([0, 359.75])
 
-    found=False
+    found = False
 
     if fn:
         try:
             log.info("Attempting to open domain as netCDF file with Xarray")
-            ds = xr.open_dataset(fn,engine="netcdf4")
+            ds = xr.open_dataset(fn, engine="netcdf4")
         except FileNotFoundError:
-            log.error(f"Input domain data file not found")
+            log.error("Input domain data file not found")
         except AttributeError:
-            log.error(f"Input dataset is not a valid geogrid file")
+            log.error("Input dataset is not a valid geogrid file")
         except OSError:
             log.info("Not Found")
             pass
         else:
             log.info("Found")
-            lats,lons=domain_from_ds(ds,polar)
-            found=True
+            lats, lons = domain_from_ds(ds, polar)
+            found = True
 
         if not found:
             try:
@@ -67,13 +69,13 @@ def get_domain(fn: Optional[Path], polar: bool) -> Tuple[slice,slice]:
             except ValueError:
                 die(f"Invalid input file for domain: {fn}")
             log.info("Found")
-            lats,lons=domain_from_um(mf,polar)
+            lats, lons = domain_from_um(mf, polar)
 
         log.info(f"Latitudes: Target ({lats.min():.2f}:{lats.max():.2f})")
         log.info(f"Longitudes: Target ({lons.min():.2f}:{lons.max():.2f})")
 
-        ### Return a slightly bigger region so the interpolation goes OK
-        ### An extra degree should be sufficient
+        # Return a slightly bigger region so the interpolation goes OK
+        # An extra degree should be sufficient
         lat_min = lats.min() - 1
         if lat_min <= -90.0:
             lat_min = None
@@ -90,15 +92,17 @@ def get_domain(fn: Optional[Path], polar: bool) -> Tuple[slice,slice]:
         if lon_max >= 359.75:
             lon_max = None
 
-        ### Lats are backwards in ERA5
-        return slice(lat_max, lat_min),slice(lon_min,lon_max)
+        # Lats are backwards in ERA5
+        return slice(lat_max, lat_min), slice(lon_min, lon_max)
     else:
-        log.warn("Outputting the global domain - use qrparm.mask (for UM) or Geogrid file (for WRF) to restrict to limited area")
+        log.warn(
+            "Outputting the global domain - use qrparm.mask (for UM) or Geogrid file (for WRF) to restrict to limited area"
+        )
         return slice(None), slice(None)
 
-def get_domain_with_buffer(lat_range: slice, lon_range: slice) -> Tuple[slice,slice]:
-    
-    ### Lats are backwards in ERA5
+
+def get_domain_with_buffer(lat_range: slice, lon_range: slice) -> Tuple[slice, slice]:
+    # Lats are backwards in ERA5
     lat_min = lat_range.stop
     if lat_min:
         if lat_min <= -89.0:
@@ -127,6 +131,5 @@ def get_domain_with_buffer(lat_range: slice, lon_range: slice) -> Tuple[slice,sl
         else:
             lon_max = lon_max + 1
 
-    ### Lats are backwards in ERA5
-    return slice(lat_max, lat_min),slice(lon_min,lon_max)
-
+    # Lats are backwards in ERA5
+    return slice(lat_max, lat_min), slice(lon_min, lon_max)
