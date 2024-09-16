@@ -142,7 +142,7 @@ def handle_regridding(fields: Dict[Tuple[str, str], Era5field]) -> None:
                 # da we find as the source
                 if regrid is None:
                     regrid = da.attrs["source"]
-                example_das[da.attrs["source"]] = da.isel(time=0)
+                example_das[da.attrs["source"]] = da.isel(time=0).drop_vars('time')
                 if "level" in example_das[da.attrs["source"]].coords:
                     example_das[da.attrs["source"]] = (example_das[da.attrs["source"]].isel(level=0).drop_vars("level"))
     target_da = None
